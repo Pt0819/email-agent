@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(npm --version)",
+      "Bash(docker --version)",
+      "Bash(docker-compose --version)",
+      "Bash(mysql --version)",
+      "Bash(docker exec:*)",
+      "Bash(mkdir -p \"D:/claude project/mail-agent/email-web\")",
+      "Bash(mkdir -p \"D:/claude project/mail-agent/sql\")",
+      "Bash(mkdir -p \"D:/claude project/mail-agent/docker\")",
+      "Bash(mkdir -p \"D:/claude project/mail-agent/configs\")",
+      "Bash(powershell -Command \"go mod tidy\")",
+      "Bash(powershell -Command \"go build -o server.exe ./cmd/server\")",
+      "Bash(powershell -Command \"npm run build\")",
+      "Bash(go build:*)"
+    ]
+  }
+}

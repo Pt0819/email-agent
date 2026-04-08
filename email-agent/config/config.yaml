@@ -1,0 +1,73 @@
+# Agent配置
+server:
+  host: "0.0.0.0"
+  port: 8001
+
+# Redis配置
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+
+# ChromaDB配置
+chroma:
+  host: "localhost"
+  port: 8000
+  collection_name: "emails"
+
+# LLM配置
+llm:
+  default_provider: "deepseek"
+
+  providers:
+    deepseek:
+      enabled: true
+      api_key: "${DEEPSEEK_API_KEY}"
+      model: "deepseek-chat"
+      temperature: 0.3
+      max_tokens: 4096
+      base_url: "https://api.deepseek.com/v1"
+
+    zhipu:
+      enabled: false
+      api_key: "${ZHIPU_API_KEY}"
+      model: "glm-4"
+      temperature: 0.3
+
+# 分类配置
+classification:
+  auto_classify: true
+  categories:
+    - code: "work_urgent"
+      name: "紧急工作"
+      priority: "critical"
+    - code: "work_normal"
+      name: "普通工作"
+      priority: "medium"
+    - code: "personal"
+      name: "个人邮件"
+      priority: "medium"
+    - code: "subscription"
+      name: "订阅邮件"
+      priority: "low"
+    - code: "notification"
+      name: "系统通知"
+      priority: "low"
+    - code: "promotion"
+      name: "营销推广"
+      priority: "low"
+    - code: "spam"
+      name: "垃圾邮件"
+      priority: "low"
+
+# 提取配置
+extraction:
+  extract_actions: true
+  extract_meetings: true
+  extract_deadlines: true
+  extract_entities: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
