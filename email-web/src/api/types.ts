@@ -1,0 +1,143 @@
+// ==================== 通用类型 ====================
+
+export interface ApiResponse<T = unknown> {
+  code: number;
+  message: string;
+  data?: T;
+}
+
+export interface PageData<T = unknown> {
+  list: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// ==================== 邮件类型 ====================
+
+export type EmailCategory =
+  | 'work_urgent'
+  | 'work_normal'
+  | 'personal'
+  | 'subscription'
+  | 'notification'
+  | 'promotion'
+  | 'spam'
+  | 'unclassified';
+
+export type EmailPriority = 'critical' | 'high' | 'medium' | 'low';
+
+export type EmailStatus = 'unread' | 'read' | 'processed' | 'archived';
+
+export interface Email {
+  id: string;
+  message_id: string;
+  subject: string;
+  sender_name: string;
+  sender_email: string;
+  content: string;
+  content_html?: string;
+  category: EmailCategory;
+  priority: EmailPriority;
+  status: EmailStatus;
+  has_attachment: boolean;
+  received_at: string;
+  created_at: string;
+}
+
+export interface EmailListParams {
+  page?: number;
+  page_size?: number;
+  category?: EmailCategory;
+  status?: EmailStatus;
+  keyword?: string;
+}
+
+// ==================== 账户类型 ====================
+
+export type EmailProvider = '126' | 'gmail' | 'outlook' | 'imap';
+
+export interface EmailAccount {
+  id: number;
+  user_id: number;
+  provider: EmailProvider;
+  account_email: string;
+  last_sync_at?: string;
+  sync_enabled: boolean;
+  created_at: string;
+}
+
+export interface CreateAccountRequest {
+  email: string;
+  provider: EmailProvider;
+  credential: string; // 授权码
+}
+
+// ==================== 分类类型 ====================
+
+export interface ClassificationResult {
+  category: EmailCategory;
+  priority: EmailPriority;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface ClassifyResponse {
+  email_id: string;
+  classification: ClassificationResult;
+  processed_at: string;
+}
+
+// ==================== 同步类型 ====================
+
+export interface SyncStatus {
+  last_sync: string;
+  status: 'idle' | 'syncing' | 'error';
+  account_id?: number;
+  progress?: number;
+  total?: number;
+}
+
+export interface SyncResponse {
+  task_id: string;
+  status: string;
+}
+
+// ==================== 分类映射 ====================
+
+export const CATEGORY_LABELS: Record<EmailCategory, string> = {
+  work_urgent: '紧急工作',
+  work_normal: '普通工作',
+  personal: '个人邮件',
+  subscription: '订阅邮件',
+  notification: '系统通知',
+  promotion: '营销推广',
+  spam: '垃圾邮件',
+  unclassified: '未分类',
+};
+
+export const CATEGORY_COLORS: Record<EmailCategory, string> = {
+  work_urgent: 'bg-red-100 text-red-800 border-red-200',
+  work_normal: 'bg-blue-100 text-blue-800 border-blue-200',
+  personal: 'bg-green-100 text-green-800 border-green-200',
+  subscription: 'bg-purple-100 text-purple-800 border-purple-200',
+  notification: 'bg-gray-100 text-gray-800 border-gray-200',
+  promotion: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  spam: 'bg-pink-100 text-pink-800 border-pink-200',
+  unclassified: 'bg-slate-100 text-slate-800 border-slate-200',
+};
+
+export const PRIORITY_LABELS: Record<EmailPriority, string> = {
+  critical: '紧急',
+  high: '高',
+  medium: '中',
+  low: '低',
+};
+
+export const PRIORITY_COLORS: Record<EmailPriority, string> = {
+  critical: 'text-red-600',
+  high: 'text-orange-600',
+  medium: 'text-yellow-600',
+  low: 'text-gray-600',
+};
