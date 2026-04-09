@@ -2,7 +2,9 @@
 package global
 
 import (
+	"email-backend/server/config"
 	"email-backend/server/core"
+	"email-backend/server/pkg/crypto"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +15,11 @@ func DB() *gorm.DB {
 }
 
 // Config 获取全局配置
-func Config() *core.GlobalConfig {
+func Config() *config.Config {
 	return core.GlobalConfig
+}
+
+// Encryptor 获取全局凭证加密器
+func Encryptor() *crypto.CredentialEncryptor {
+	return core.GlobalEncryptor
 }

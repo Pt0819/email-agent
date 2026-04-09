@@ -3,6 +3,7 @@ module email-backend
 go 1.21
 
 require (
+	github.com/emersion/go-imap v1.2.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/spf13/viper v1.18.2
 	gorm.io/driver/mysql v1.6.0
@@ -13,6 +14,9 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/emersion/go-message v0.15.0 // indirect
+	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
+	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

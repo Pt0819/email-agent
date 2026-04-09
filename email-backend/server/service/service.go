@@ -3,10 +3,23 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"email-backend/server/global"
 	"email-backend/server/model"
 	emailRequest "email-backend/server/model/request"
+	"email-backend/server/pkg/email/provider"
 	"email-backend/server/repository"
+)
+
+// 错误定义
+var (
+	ErrInvalidCredential = errors.New("无效的凭证")
+	ErrProviderNotFound  = errors.New("不支持的邮件提供商")
+	ErrAccountNotFound   = errors.New("账户不存在")
+	ErrEncryptFailed     = errors.New("加密失败")
+	ErrDecryptFailed     = errors.New("解密失败")
 )
 
 // EmailService 邮件服务
@@ -80,11 +93,69 @@ func (s *AccountService) List(ctx context.Context, userID int64) ([]*model.Email
 }
 
 // Create 创建账户
-func (s *AccountService) Create(ctx context.Context, account *model.EmailAccount) error {
+func (s *AccountService) Create(ctx context.Context, account *model.EmailAccount, credential string) error {
+	// 加密凭证
+	encrypted, iv, err := global.Encryptor().Encrypt(credential)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEncryptFailed, err)
+	}
+
+	account.EncryptedCredential = encrypted
+	account.CredentialIV = iv
+
 	return s.repo.Create(ctx, account)
 }
 
 // Delete 删除账户
 func (s *AccountService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// TestConnection 测试账户连接
+func (s *AccountService) TestConnection(ctx context.Context, id int64) (*provider.ConnectionResult, error) {
+	// 获取账户信息
+	account, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, ErrAccountNotFound
+	}
+
+	// 解密凭证
+	credential, err := global.Encryptor().Decrypt(
+		account.EncryptedCredential,
+		account.CredentialIV,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrDecryptFailed, err)
+	}
+
+	// 创建Provider
+	emailProvider, ok := provider.Create(account.Provider, nil)
+	if !ok {
+		return nil, ErrProviderNotFound
+	}
+
+	// 连接并测试
+	err = emailProvider.Connect(ctx, account.AccountEmail, credential)
+	if err != nil {
+		return &provider.ConnectionResult{
+			Success: false,
+			Message: fmt.Sprintf("连接失败: %v", err),
+		}, nil
+	}
+	defer emailProvider.Disconnect()
+
+	return emailProvider.TestConnection(ctx)
+}
+
+// GetDecryptedCredential 获取解密的凭证
+func (s *AccountService) GetDecryptedCredential(ctx context.Context, id int64) (string, error) {
+	account, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return "", ErrAccountNotFound
+	}
+
+	return global.Encryptor().Decrypt(
+		account.EncryptedCredential,
+		account.CredentialIV,
+	)
 }

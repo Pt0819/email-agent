@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"email-backend/server/config"
+	"email-backend/server/pkg/crypto"
+	"email-backend/server/pkg/email/provider"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -16,6 +18,8 @@ var (
 	GlobalConfig *config.Config
 	// GlobalDB 全局数据库连接
 	GlobalDB *gorm.DB
+	// GlobalEncryptor 全局凭证加密器
+	GlobalEncryptor *crypto.CredentialEncryptor
 )
 
 // InitConfig 初始化配置
@@ -26,6 +30,29 @@ func InitConfig(configPath string) error {
 	}
 	GlobalConfig = cfg
 	return nil
+}
+
+// InitEncryptor 初始化凭证加密器
+func InitEncryptor() error {
+	key := GlobalConfig.Security.CredentialKey
+	if key == "" {
+		return fmt.Errorf("凭证加密密钥未配置，请设置环境变量 CREDENTIAL_KEY")
+	}
+
+	enc, err := crypto.NewCredentialEncryptor(key)
+	if err != nil {
+		return fmt.Errorf("创建加密器失败: %w", err)
+	}
+
+	GlobalEncryptor = enc
+	return nil
+}
+
+// InitProviders 初始化邮件Provider
+func InitProviders() {
+	// Provider 在各自的文件中通过 init() 自动注册
+	// 这里可以添加日志记录
+	fmt.Printf("已注册的邮件Provider: %v\n", provider.ListProviders())
 }
 
 // InitDB 初始化数据库连接
