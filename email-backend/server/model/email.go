@@ -9,25 +9,26 @@ import (
 
 // Email 邮件模型
 type Email struct {
-	ID           int64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	MessageID    string         `gorm:"uniqueIndex;size:255;not null" json:"message_id"`
-	UserID       int64          `gorm:"index;not null" json:"user_id"`
-	AccountID    int64          `gorm:"index;not null" json:"account_id"`
-	SenderName   string         `gorm:"size:255" json:"sender_name"`
-	SenderEmail  string         `gorm:"size:255;not null" json:"sender_email"`
-	Subject      string         `gorm:"size:512" json:"subject"`
-	Content      string         `gorm:"type:text" json:"content"`
-	ContentHTML  string         `gorm:"type:text" json:"content_html"`
-	Category     string         `gorm:"size:50;default:unclassified;index" json:"category"`
-	Priority     string         `gorm:"size:20;default:medium" json:"priority"`
-	Confidence   float64       `gorm:"type:decimal(5,4);default:0" json:"confidence"`
-	Status       string         `gorm:"size:20;default:unread;index" json:"status"`
-	IsProcessed  bool           `gorm:"default:false" json:"is_processed"`
-	HasAttachment bool          `gorm:"default:false" json:"has_attachment"`
-	ReceivedAt   time.Time     `gorm:"not null;index" json:"received_at"`
-	ProcessedAt   *time.Time    `json:"processed_at,omitempty"`
-	CreatedAt     time.Time     `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time     `gorm:"autoUpdateTime" json:"updated_at"`
+	ID            int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	MessageID     string         `gorm:"uniqueIndex;size:255;not null" json:"message_id"`
+	UserID        int64          `gorm:"index;not null" json:"user_id"`
+	AccountID     int64          `gorm:"index;not null" json:"account_id"`
+	SenderName    string         `gorm:"size:255" json:"sender_name"`
+	SenderEmail   string         `gorm:"size:255;not null" json:"sender_email"`
+	Subject       string         `gorm:"size:512" json:"subject"`
+	Content       string         `gorm:"type:text" json:"content"`
+	ContentHTML   string         `gorm:"type:text" json:"content_html"`
+	ContentType   string         `gorm:"size:20;default:text/plain" json:"content_type"`
+	Category      string         `gorm:"size:50;default:unclassified;index" json:"category"`
+	Priority      string         `gorm:"size:20;default:medium" json:"priority"`
+	Confidence    float64        `gorm:"type:decimal(5,4);default:0" json:"confidence"`
+	Status        string         `gorm:"size:20;default:unread;index" json:"status"`
+	IsProcessed   bool           `gorm:"default:false" json:"is_processed"`
+	HasAttachment bool           `gorm:"default:false" json:"has_attachment"`
+	ReceivedAt    time.Time      `gorm:"not null;index" json:"received_at"`
+	ProcessedAt   *time.Time     `json:"processed_at,omitempty"`
+	CreatedAt     time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
