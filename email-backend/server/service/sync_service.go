@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"email-backend/server/global"
@@ -16,13 +17,17 @@ import (
 type SyncService struct {
 	accountRepo *repository.AccountRepository
 	emailRepo   *repository.EmailRepository
+
+	// 并发控制
+	maxConcurrent int // 最大并发同步数
 }
 
 // NewSyncService 创建同步服务
 func NewSyncService(accountRepo *repository.AccountRepository, emailRepo *repository.EmailRepository) *SyncService {
 	return &SyncService{
-		accountRepo: accountRepo,
-		emailRepo:   emailRepo,
+		accountRepo:   accountRepo,
+		emailRepo:     emailRepo,
+		maxConcurrent: 3, // 默认最多3个账户并发同步
 	}
 }
 
@@ -33,32 +38,67 @@ type SyncRequest struct {
 
 // SyncResult 同步结果
 type SyncResult struct {
-	AccountID   int64     `json:"account_id"`
-	AccountEmail string   `json:"account_email"`
-	Success     bool      `json:"success"`
-	Message     string    `json:"message"`
-	TotalCount  int       `json:"total_count"`
-	SyncedCount int       `json:"synced_count"`
-	ErrorCount  int       `json:"error_count"`
-	SyncedAt    time.Time `json:"synced_at"`
+	AccountID    int64     `json:"account_id"`
+	AccountEmail string    `json:"account_email"`
+	Success      bool      `json:"success"`
+	Message      string    `json:"message"`
+	TotalCount   int       `json:"total_count"`
+	SyncedCount  int       `json:"synced_count"`
+	ErrorCount   int       `json:"error_count"`
+	SyncedAt     time.Time `json:"synced_at"`
 }
 
-// SyncAll 同步所有账户
+// SyncAll 并发同步所有账户
 func (s *SyncService) SyncAll(ctx context.Context, userID int64) ([]*SyncResult, error) {
 	accounts, err := s.accountRepo.ListByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("获取账户列表失败: %w", err)
 	}
 
-	results := make([]*SyncResult, 0, len(accounts))
+	// 过滤出启用同步的账户
+	var syncAccounts []*model.EmailAccount
 	for _, account := range accounts {
-		if !account.SyncEnabled {
-			continue
+		if account.SyncEnabled {
+			syncAccounts = append(syncAccounts, account)
 		}
-		result := s.SyncAccount(ctx, account.ID)
-		results = append(results, result)
 	}
 
+	if len(syncAccounts) == 0 {
+		return []*SyncResult{}, nil
+	}
+
+	// 使用并发控制
+	results := make([]*SyncResult, len(syncAccounts))
+	var wg sync.WaitGroup
+
+	// 使用带缓冲的channel控制并发数
+	semaphore := make(chan struct{}, s.maxConcurrent)
+
+	for i, account := range syncAccounts {
+		wg.Add(1)
+		go func(idx int, accID int64) {
+			defer wg.Done()
+
+			// 获取信号量
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// 检查context是否已取消
+			if ctx.Err() != nil {
+				results[idx] = &SyncResult{
+					AccountID: accID,
+					Success:   false,
+					Message:   "同步已取消",
+					SyncedAt:  time.Now(),
+				}
+				return
+			}
+
+			results[idx] = s.SyncAccount(ctx, accID)
+		}(i, account.ID)
+	}
+
+	wg.Wait()
 	return results, nil
 }
 
@@ -99,7 +139,7 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 	}
 	defer emailProvider.Disconnect()
 
-	// 连接邮箱
+	// 连接邮箱（Provider内部自带重试）
 	err = emailProvider.Connect(ctx, account.AccountEmail, credential)
 	if err != nil {
 		result.Success = false
@@ -144,7 +184,7 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 			Status:        "unread",
 		}
 
-		// 检查是否已存在
+		// 检查是否已存在（使用MessageID去重）
 		existing, _ := s.emailRepo.FindByMessageID(ctx, email.MessageID)
 		if existing == nil {
 			if err := s.emailRepo.Create(ctx, emailModel); err != nil {
