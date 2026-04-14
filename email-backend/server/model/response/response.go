@@ -1,6 +1,8 @@
 // Package model 响应结构体
 package model
 
+import "time"
+
 // Response 统一响应结构
 type Response struct {
 	Code    int         `json:"code"`
@@ -37,11 +39,11 @@ type ClassificationResponse struct {
 
 // AccountResponse 账户响应
 type AccountResponse struct {
-	ID           int64   `json:"id"`
-	Email        string  `json:"email"`
-	Provider     string  `json:"provider"`
-	LastSyncAt   string  `json:"last_sync_at,omitempty"`
-	SyncEnabled  bool    `json:"sync_enabled"`
+	ID          int64      `json:"id"`
+	Email       string     `json:"email"`
+	Provider    string     `json:"provider"`
+	LastSyncAt  *time.Time `json:"last_sync_at,omitempty"`
+	SyncEnabled bool       `json:"sync_enabled"`
 }
 
 // SyncResponse 同步响应

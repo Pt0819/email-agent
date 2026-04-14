@@ -23,18 +23,26 @@ func main() {
 	}
 	defer core.Close()
 
-	// 3. 设置Gin模式
+	// 3. 初始化加密器
+	if err := core.InitEncryptor(); err != nil {
+		log.Fatalf("初始化加密器失败: %v", err)
+	}
+
+	// 4. 初始化邮件Provider
+	core.InitProviders()
+
+	// 5. 设置Gin模式
 	if core.GlobalConfig.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 4. 创建Gin实例
+	// 6. 创建Gin实例
 	r := gin.New()
 
-	// 5. 设置路由
+	// 7. 设置路由
 	router.Setup(r)
 
-	// 6. 启动服务
+	// 8. 启动服务
 	addr := fmt.Sprintf(":%d", core.GlobalConfig.Server.Port)
 	log.Printf("服务启动在 %s", addr)
 	if err := r.Run(addr); err != nil {

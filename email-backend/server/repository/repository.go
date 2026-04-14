@@ -32,6 +32,18 @@ func (r *EmailRepository) FindByID(ctx context.Context, id int64) (*model.Email,
 	return &email, nil
 }
 
+// FindByMessageID 根据MessageID查询
+func (r *EmailRepository) FindByMessageID(ctx context.Context, messageID string) (*model.Email, error) {
+	var email model.Email
+	err := r.db.WithContext(ctx).
+		Where("message_id = ?", messageID).
+		First(&email).Error
+	if err != nil {
+		return nil, err
+	}
+	return &email, nil
+}
+
 // List 分页查询
 func (r *EmailRepository) List(ctx context.Context, req *emailRequest.ListRequest) ([]*model.Email, int64, error) {
 	var emails []*model.Email
@@ -48,6 +60,10 @@ func (r *EmailRepository) List(ctx context.Context, req *emailRequest.ListReques
 	}
 	if req.Status != "" {
 		query = query.Where("status = ?", req.Status)
+	}
+	if req.Keyword != "" {
+		keyword := "%" + req.Keyword + "%"
+		query = query.Where("subject LIKE ? OR sender_name LIKE ? OR sender_email LIKE ?", keyword, keyword, keyword)
 	}
 
 	// 统计总数
@@ -81,6 +97,16 @@ func (r *EmailRepository) Update(ctx context.Context, email *model.Email) error 
 // Delete 删除
 func (r *EmailRepository) Delete(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&model.Email{}, id).Error
+}
+
+// CountByAccount 统计账户邮件数量
+func (r *EmailRepository) CountByAccount(ctx context.Context, accountID int64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Email{}).
+		Where("account_id = ?", accountID).
+		Count(&count).Error
+	return count, err
 }
 
 // AccountRepository 账户数据访问
@@ -119,7 +145,24 @@ func (r *AccountRepository) Create(ctx context.Context, account *model.EmailAcco
 	return r.db.WithContext(ctx).Create(account).Error
 }
 
+// Update 更新
+func (r *AccountRepository) Update(ctx context.Context, account *model.EmailAccount) error {
+	return r.db.WithContext(ctx).Save(account).Error
+}
+
 // Delete 删除
 func (r *AccountRepository) Delete(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&model.EmailAccount{}, id).Error
+}
+
+// FindByEmail 根据邮箱查询
+func (r *AccountRepository) FindByEmail(ctx context.Context, userID int64, email string) (*model.EmailAccount, error) {
+	var account model.EmailAccount
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND account_email = ?", userID, email).
+		First(&account).Error
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
 }
