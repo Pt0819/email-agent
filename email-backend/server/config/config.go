@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -84,9 +85,17 @@ func LoadConfig(configPath string) (*Config, error) {
 		v.AddConfigPath(".")
 	}
 
-	// 环境变量
+	// 读取配置文件
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		}
+	}
+
+	// 环境变量（放在读取配置文件之后）
 	v.AutomaticEnv()
 	v.SetEnvPrefix("EMAIL")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// 读取配置文件
 	if err := v.ReadInConfig(); err != nil {
@@ -130,7 +139,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 3306)
 	v.SetDefault("database.username", "root")
-	v.SetDefault("database.dbname", "email_system")
+	v.SetDefault("database.password", "123456")
+	v.SetDefault("database.dbname", "email_agent")
 	v.SetDefault("database.max_open_conns", 100)
 	v.SetDefault("database.max_idle_conns", 10)
 

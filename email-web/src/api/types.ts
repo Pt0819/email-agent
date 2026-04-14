@@ -49,8 +49,8 @@ export interface Email {
 export interface EmailListParams {
   page?: number;
   page_size?: number;
-  category?: EmailCategory;
-  status?: EmailStatus;
+  category?: EmailCategory | 'all';
+  status?: EmailStatus | 'all';
   keyword?: string;
 }
 
@@ -140,4 +140,25 @@ export const PRIORITY_COLORS: Record<EmailPriority, string> = {
   high: 'text-orange-600',
   medium: 'text-yellow-600',
   low: 'text-gray-600',
+};
+
+// ==================== 筛选器选项 ====================
+
+export const FILTERS = {
+  categories: [
+    { value: 'work_urgent' as const, label: '紧急工作' },
+    { value: 'work_normal' as const, label: '普通工作' },
+    { value: 'personal' as const, label: '个人邮件' },
+    { value: 'subscription' as const, label: '订阅邮件' },
+    { value: 'notification' as const, label: '系统通知' },
+    { value: 'promotion' as const, label: '营销推广' },
+    { value: 'spam' as const, label: '垃圾邮件' },
+    { value: 'unclassified' as const, label: '未分类' },
+  ],
+  statuses: [
+    { value: 'unread' as const, label: '未读' },
+    { value: 'read' as const, label: '已读' },
+    { value: 'processed' as const, label: '已处理' },
+    { value: 'archived' as const, label: '已归档' },
+  ],
 };
