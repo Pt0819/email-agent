@@ -9,6 +9,12 @@ import yaml
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
+# 加载.env文件
+from dotenv import load_dotenv
+_env_path = Path(__file__).parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
+
 
 class ServerConfig(BaseModel):
     """服务配置"""

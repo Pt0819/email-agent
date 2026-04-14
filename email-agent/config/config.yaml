@@ -17,22 +17,24 @@ chroma:
 
 # LLM配置
 llm:
-  default_provider: "deepseek"
+  default_provider: "zhipu"  # 默认使用智谱GLM（有免费额度）
 
   providers:
-    deepseek:
+    zhipu:
       enabled: true
+      api_key: "${ZHIPU_API_KEY}"  # 智谱API Key（免费模型有额度限制）
+      model: "glm-4-flash"  # 免费模型
+      temperature: 0.3
+      max_tokens: 4096
+      base_url: "https://open.bigmodel.cn/api/paas/v4"
+
+    deepseek:
+      enabled: false
       api_key: "${DEEPSEEK_API_KEY}"
       model: "deepseek-chat"
       temperature: 0.3
       max_tokens: 4096
       base_url: "https://api.deepseek.com/v1"
-
-    zhipu:
-      enabled: false
-      api_key: "${ZHIPU_API_KEY}"
-      model: "glm-4"
-      temperature: 0.3
 
 # 分类配置
 classification:

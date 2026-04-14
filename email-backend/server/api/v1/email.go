@@ -6,6 +6,7 @@ import (
 
 	emailRequest "email-backend/server/model/request"
 	respModel "email-backend/server/model/response"
+	"email-backend/server/pkg/agent"
 	"email-backend/server/service"
 
 	"github.com/gin-gonic/gin"
@@ -14,16 +15,17 @@ import (
 // EmailHandler 邮件处理器
 type EmailHandler struct {
 	emailService *service.EmailService
+	agentClient  *agent.Client
 }
 
 // NewEmailHandler 创建邮件处理器
-func NewEmailHandler(emailSvc *service.EmailService) *EmailHandler {
-	return &EmailHandler{emailService: emailSvc}
+func NewEmailHandler(emailSvc *service.EmailService, agentClient *agent.Client) *EmailHandler {
+	return &EmailHandler{emailService: emailSvc, agentClient: agentClient}
 }
 
 // SetupEmailRoutes 注册邮件路由
-func SetupEmailRoutes(r *gin.RouterGroup) {
-	h := NewEmailHandler(service.NewEmailService(nil))
+func SetupEmailRoutes(r *gin.RouterGroup, agentClient *agent.Client) {
+	h := NewEmailHandler(service.NewEmailService(nil), agentClient)
 
 	emails := r.Group("/emails")
 	{
@@ -103,18 +105,40 @@ func (h *EmailHandler) ClassifyEmail(c *gin.Context) {
 		return
 	}
 
-	// TODO: 调用Agent服务进行分类
+	// 获取邮件内容
+	email, err := h.emailService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		notFound(c, "邮件不存在")
+		return
+	}
+
+	// 调用Agent进行分类
+	classifyReq := &agent.ClassifyRequest{
+		EmailID:     idStr,
+		Subject:     email.Subject,
+		SenderName:  email.SenderName,
+		SenderEmail: email.SenderEmail,
+		Content:     email.Content,
+		ReceivedAt:  email.ReceivedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	agentResp, err := h.agentClient.Classify(c.Request.Context(), classifyReq)
+	if err != nil {
+		errorResp(c, 500, "Agent分类失败: "+err.Error())
+		return
+	}
+
 	result := &respModel.ClassificationResponse{
 		EmailID:    idStr,
-		Category:   "work_normal",
-		Priority:   "medium",
-		Confidence: 0.85,
-		Reasoning:  "基于内容分析判断为普通工作邮件",
+		Category:   agentResp.Classification.Category,
+		Priority:   agentResp.Classification.Priority,
+		Confidence: agentResp.Classification.Confidence,
+		Reasoning:  agentResp.Classification.Reasoning,
 	}
 
 	// 更新邮件分类
 	if err := h.emailService.ClassifyEmail(c.Request.Context(), id, result.Category, result.Priority, result.Confidence); err != nil {
-		errorResp(c, 500, "分类失败")
+		errorResp(c, 500, "更新分类失败")
 		return
 	}
 

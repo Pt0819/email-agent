@@ -39,8 +39,8 @@ func main() {
 	// 6. 创建Gin实例
 	r := gin.New()
 
-	// 7. 设置路由
-	router.Setup(r)
+	// 7. 设置路由（传入配置以初始化Agent客户端）
+	router.Setup(r, core.GlobalConfig)
 
 	// 8. 启动服务
 	addr := fmt.Sprintf(":%d", core.GlobalConfig.Server.Port)
