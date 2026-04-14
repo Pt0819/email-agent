@@ -1,17 +1,24 @@
-// Package provider 邮件提供商实现
+// Package provider 邮件提供商实现 - 网易126邮箱
 package provider
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
+	"io"
+	"mime"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/emersion/go-imap"
+	"github.com/emersion/go-imap/client"
+	"github.com/emersion/go-message"
+	_ "github.com/emersion/go-message/charset" // 注册字符集解码器
 )
 
 // Net126Provider 网易126邮箱Provider
-// 使用原生 IMAP 协议实现
+// 使用 go-imap 库实现 IMAP 协议
 type Net126Provider struct {
 	name       string
 	server     string
@@ -19,18 +26,25 @@ type Net126Provider struct {
 	useSSL     bool
 	email      string
 	credential string
-	conn       net.Conn
+	client     *client.Client
 	timeout    time.Duration
+	mu         sync.Mutex
+
+	// 重试配置
+	maxRetries    int
+	retryInterval time.Duration
 }
 
 // NewNet126Provider 创建126邮箱Provider
 func NewNet126Provider(config *ProviderConfig) EmailProvider {
 	p := &Net126Provider{
-		name:    "126",
-		server:  "imap.126.com",
-		port:    993,
-		useSSL:  true,
-		timeout: 30 * time.Second,
+		name:          "126",
+		server:        "imap.126.com",
+		port:          993,
+		useSSL:        true,
+		timeout:       30 * time.Second,
+		maxRetries:    3,
+		retryInterval: 2 * time.Second,
 	}
 
 	if config != nil {
@@ -53,56 +67,71 @@ func (p *Net126Provider) Name() string {
 	return p.name
 }
 
-// Connect 连接邮箱服务器
+// Connect 连接邮箱服务器（带重试机制）
 func (p *Net126Provider) Connect(ctx context.Context, email, credential string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.email = email
 	p.credential = credential
 
+	var lastErr error
+	for attempt := 1; attempt <= p.maxRetries; attempt++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		err := p.connectOnce()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// 认证失败不重试
+		if strings.Contains(err.Error(), "认证失败") ||
+			strings.Contains(err.Error(), "LOGIN failed") {
+			return err
+		}
+
+		if attempt < p.maxRetries {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(p.retryInterval):
+				continue
+			}
+		}
+	}
+
+	return fmt.Errorf("连接失败(重试%d次): %w", p.maxRetries, lastErr)
+}
+
+// connectOnce 单次连接尝试
+func (p *Net126Provider) connectOnce() error {
 	addr := fmt.Sprintf("%s:%d", p.server, p.port)
 
+	var c *client.Client
 	var err error
-	p.conn, err = net.DialTimeout("tcp", addr, p.timeout)
-	if err != nil {
-		return fmt.Errorf("连接邮箱服务器失败: %w", err)
-	}
 
 	if p.useSSL {
-		tlsConfig := &tls.Config{
-			ServerName:         p.server,
-			InsecureSkipVerify: false,
-		}
-		p.conn = tls.Client(p.conn, tlsConfig)
+		tlsConfig := &tls.Config{ServerName: p.server}
+		c, err = client.DialTLS(addr, tlsConfig)
+	} else {
+		c, err = client.Dial(addr)
 	}
 
-	p.conn.SetDeadline(time.Now().Add(p.timeout))
-
-	// 读取服务器问候语
-	buf := make([]byte, 1024)
-	_, err = p.conn.Read(buf)
 	if err != nil {
-		p.Disconnect()
-		return fmt.Errorf("读取服务器问候语失败: %w", err)
+		return fmt.Errorf("连接服务器失败: %w", err)
 	}
 
-	// 发送 LOGIN 命令
-	loginCmd := fmt.Sprintf("A001 LOGIN \"%s\" \"%s\"\r\n", email, credential)
-	_, err = p.conn.Write([]byte(loginCmd))
-	if err != nil {
-		p.Disconnect()
-		return fmt.Errorf("发送登录命令失败: %w", err)
-	}
+	p.client = c
+	p.client.Timeout = p.timeout
 
-	// 读取响应
-	n, err := p.conn.Read(buf)
-	if err != nil {
-		p.Disconnect()
-		return fmt.Errorf("读取登录响应失败: %w", err)
-	}
-
-	resp := string(buf[:n])
-	if !strings.Contains(resp, "OK") {
-		p.Disconnect()
-		return fmt.Errorf("登录失败: %s", resp)
+	if err := p.client.Login(p.email, p.credential); err != nil {
+		p.client.Close()
+		p.client = nil
+		return fmt.Errorf("认证失败: %w", err)
 	}
 
 	return nil
@@ -110,199 +139,279 @@ func (p *Net126Provider) Connect(ctx context.Context, email, credential string) 
 
 // TestConnection 测试连接
 func (p *Net126Provider) TestConnection(ctx context.Context) (*ConnectionResult, error) {
-	if p.conn == nil {
-		return &ConnectionResult{
-			Success: false,
-			Message: "未连接到服务器",
-		}, nil
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.client == nil {
+		return &ConnectionResult{Success: false, Message: "未连接到服务器"}, nil
 	}
 
-	p.conn.SetDeadline(time.Now().Add(p.timeout))
-
-	// 发送 NOOP 命令
-	_, err := p.conn.Write([]byte("A000 NOOP\r\n"))
-	if err != nil {
-		return &ConnectionResult{
-			Success: false,
-			Message: fmt.Sprintf("连接测试失败: %v", err),
-		}, nil
-	}
-
-	// 读取响应
-	buf := make([]byte, 1024)
-	_, err = p.conn.Read(buf)
-	if err != nil {
+	if err := p.client.Noop(); err != nil {
 		return &ConnectionResult{
 			Success: false,
 			Message: fmt.Sprintf("连接已断开: %v", err),
 		}, nil
 	}
 
-	return &ConnectionResult{
-		Success: true,
-		Message: "连接正常",
-	}, nil
+	return &ConnectionResult{Success: true, Message: "连接正常"}, nil
 }
 
 // FetchEmailList 获取邮件列表
 func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, limit int) ([]*EmailSummary, error) {
-	if p.conn == nil {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.client == nil {
 		return nil, fmt.Errorf("未连接")
 	}
 
-	p.conn.SetDeadline(time.Now().Add(p.timeout))
-
 	// 选择收件箱
-	_, err := p.conn.Write([]byte("A002 SELECT INBOX\r\n"))
-	if err != nil {
+	if _, err := p.client.Select("INBOX", false); err != nil {
 		return nil, fmt.Errorf("选择收件箱失败: %w", err)
 	}
 
-	// 读取响应直到完成
-	total := 0
-	for {
-		buf := make([]byte, 1024)
-		p.conn.SetReadDeadline(time.Now().Add(p.timeout))
-		n, err := p.conn.Read(buf)
-		if err != nil {
-			return nil, fmt.Errorf("读取响应失败: %w", err)
-		}
-		resp := string(buf[:n])
-
-		// 解析邮件总数
-		if strings.Contains(resp, "EXISTS") {
-			parts := strings.Split(resp, "EXISTS")
-			if len(parts) > 0 {
-				numStr := strings.TrimSpace(parts[0])
-				numStr = strings.Trim(numStr, " ")
-				numParts := strings.Fields(numStr)
-				if len(numParts) > 0 {
-					fmt.Sscanf(numParts[len(numParts)-1], "%d", &total)
-				}
-			}
-		}
-
-		if strings.Contains(resp, "A002 OK") {
-			break
-		}
+	// 搜索未读邮件
+	criteria := imap.NewSearchCriteria()
+	if !since.IsZero() {
+		criteria.Since = since
 	}
+	criteria.WithoutFlags = []string{imap.SeenFlag}
 
-	if total == 0 {
-		return []*EmailSummary{}, nil
-	}
-
-	// 搜索指定日期之后的邮件
-	sinceStr := since.Format("02-Jan-2006")
-	searchCmd := fmt.Sprintf("A003 SEARCH SINCE %s NOT SEEN\r\n", sinceStr)
-	_, err = p.conn.Write([]byte(searchCmd))
+	uids, err := p.client.Search(criteria)
 	if err != nil {
 		return nil, fmt.Errorf("搜索邮件失败: %w", err)
 	}
 
-	// 读取搜索结果
-	buf := make([]byte, 4096)
-	n, err := p.conn.Read(buf)
-	if err != nil {
-		return nil, fmt.Errorf("读取搜索结果失败: %w", err)
-	}
-
-	resp := string(buf[:n])
-	var ids []int
-	fmt.Sscanf(strings.Replace(resp, "SEARCH", "", 1), "%d", &ids)
-
-	if len(ids) == 0 {
-		// 如果没有未读，返回最新的
-		start := total - limit + 1
-		if start < 1 {
-			start = 1
-		}
-		for i := start; i <= total; i++ {
-			ids = append(ids, i)
-		}
-	}
-
-	if len(ids) > limit {
-		ids = ids[len(ids)-limit:]
-	}
-
-	summaries := make([]*EmailSummary, 0, len(ids))
-	for _, id := range ids {
-		summary, err := p.fetchEmailSummary(uint32(id))
+	// 没有未读时获取最新邮件
+	if len(uids) == 0 {
+		criteriaAll := imap.NewSearchCriteria()
+		uids, err = p.client.Search(criteriaAll)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("搜索所有邮件失败: %w", err)
 		}
-		summaries = append(summaries, summary)
+	}
+
+	if len(uids) > limit {
+		uids = uids[len(uids)-limit:]
+	}
+
+	if len(uids) == 0 {
+		return []*EmailSummary{}, nil
+	}
+
+	uidSet := new(imap.SeqSet)
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	// 获取信封+大小+BodyStructure（用于判断附件）
+	fetchItems := []imap.FetchItem{
+		imap.FetchEnvelope,
+		imap.FetchRFC822Size,
+		imap.FetchFlags,
+		imap.FetchBodyStructure,
+	}
+	messages := make(chan *imap.Message, 10)
+	done := make(chan error, 1)
+
+	go func() {
+		done <- p.client.UidFetch(uidSet, fetchItems, messages)
+	}()
+
+	summaries := make([]*EmailSummary, 0, len(uids))
+	for msg := range messages {
+		summary := p.parseEnvelope(msg)
+		if summary != nil {
+			summaries = append(summaries, summary)
+		}
+	}
+
+	if err := <-done; err != nil {
+		return nil, fmt.Errorf("获取邮件头失败: %w", err)
 	}
 
 	return summaries, nil
 }
 
-func (p *Net126Provider) fetchEmailSummary(seqNum uint32) (*EmailSummary, error) {
-	// 获取邮件头
-	cmd := fmt.Sprintf("A004 FETCH %d (ENVELOPE RFC822.SIZE)\r\n", seqNum)
-	_, err := p.conn.Write([]byte(cmd))
-	if err != nil {
-		return nil, err
+// parseEnvelope 解析邮件信封
+func (p *Net126Provider) parseEnvelope(msg *imap.Message) *EmailSummary {
+	if msg == nil || msg.Envelope == nil {
+		return nil
 	}
 
-	// 读取响应
-	buf := make([]byte, 4096)
-	n, err := p.conn.Read(buf)
-	if err != nil {
-		return nil, err
+	summary := &EmailSummary{
+		MessageID:  msg.Envelope.MessageId,
+		Subject:    decodeSubject(msg.Envelope.Subject),
+		ReceivedAt: msg.Envelope.Date,
+		Size:       int(msg.Size),
 	}
 
-	summary := &EmailSummary{}
-	resp := string(buf[:n])
+	if len(msg.Envelope.From) > 0 {
+		from := msg.Envelope.From[0]
+		summary.SenderName = from.PersonalName
+		summary.SenderEmail = from.Address()
+	}
 
-	// 简单解析 ENVELOPE
-	// 格式: ENVELOPE ("date" "subject" ("from" ("name" "adl" "mailbox" "host")) ...)
-	// 这里做简化处理
+	if msg.BodyStructure != nil {
+		summary.HasAttachment = hasAttachment(msg.BodyStructure)
+	}
 
-	// 提取 Subject
-	if strings.Contains(resp, "ENVELOPE") {
-		envStart := strings.Index(resp, "(")
-		envEnd := strings.LastIndex(resp, ")")
-		if envStart > 0 && envEnd > envStart {
-			env := resp[envStart : envEnd+1]
-			summary.MessageID = fmt.Sprintf("<seq-%d>", seqNum)
+	return summary
+}
 
-			// 尝试提取日期
-			parts := strings.Split(env, "\"")
-			if len(parts) > 2 {
-				// 第一个引号内容是日期
-				dateStr := parts[1]
-				if t, err := time.Parse("02-Jan-2006 15:04:05 -0700", dateStr+" +0000"); err == nil {
-					summary.ReceivedAt = t
-				}
-			}
+// hasAttachment 递归检查BodyStructure是否有附件
+func hasAttachment(bs *imap.BodyStructure) bool {
+	if bs == nil {
+		return false
+	}
+
+	if bs.Disposition == "attachment" {
+		return true
+	}
+
+	for _, part := range bs.Parts {
+		if hasAttachment(part) {
+			return true
 		}
 	}
 
-	return summary, nil
+	// 非文本非多部分的独立部分视为附件
+	if len(bs.Parts) == 0 && bs.MIMEType != "text" && bs.MIMEType != "multipart" && bs.MIMEType != "" {
+		return true
+	}
+
+	return false
 }
 
 // FetchEmailDetail 获取邮件详情
 func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string) (*Email, error) {
-	if p.conn == nil {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.client == nil {
 		return nil, fmt.Errorf("未连接")
 	}
 
 	// 选择收件箱
-	p.conn.Write([]byte("A005 SELECT INBOX\r\n"))
-
-	// 简化实现：获取最新一封邮件
-	cmd := fmt.Sprintf("A006 FETCH %s (ENVELOPE BODY[TEXT])\r\n", messageID)
-	_, err := p.conn.Write([]byte(cmd))
-	if err != nil {
-		return nil, err
+	if _, err := p.client.Select("INBOX", false); err != nil {
+		return nil, fmt.Errorf("选择收件箱失败: %w", err)
 	}
 
+	// 搜索指定Message-ID
+	criteria := imap.NewSearchCriteria()
+	criteria.Header = map[string][]string{"Message-ID": {messageID}}
+
+	uids, err := p.client.Search(criteria)
+	if err != nil {
+		return nil, fmt.Errorf("搜索邮件失败: %w", err)
+	}
+	if len(uids) == 0 {
+		return nil, fmt.Errorf("邮件不存在: %s", messageID)
+	}
+
+	uidSet := new(imap.SeqSet)
+	uidSet.AddNum(uids[0])
+
+	// 获取完整邮件（RFC822包含header和body）
+	fetchItems := []imap.FetchItem{imap.FetchEnvelope, imap.FetchBodyStructure, imap.FetchRFC822}
+	messages := make(chan *imap.Message, 1)
+	done := make(chan error, 1)
+
+	go func() {
+		done <- p.client.UidFetch(uidSet, fetchItems, messages)
+	}()
+
+	msg := <-messages
+	if err := <-done; err != nil {
+		return nil, fmt.Errorf("获取邮件失败: %w", err)
+	}
+	if msg == nil {
+		return nil, fmt.Errorf("获取邮件内容为空")
+	}
+
+	// 构建返回对象
 	email := &Email{
-		MessageID: messageID,
+		MessageID:     msg.Envelope.MessageId,
+		Subject:       decodeSubject(msg.Envelope.Subject),
+		ReceivedAt:    msg.Envelope.Date,
+		HasAttachment: hasAttachment(msg.BodyStructure),
+	}
+
+	if len(msg.Envelope.From) > 0 {
+		from := msg.Envelope.From[0]
+		email.SenderName = from.PersonalName
+		email.SenderEmail = from.Address()
+	}
+
+	if len(msg.Envelope.To) > 0 {
+		email.To = msg.Envelope.To[0].Address()
+	}
+
+	for _, cc := range msg.Envelope.Cc {
+		email.CC = append(email.CC, cc.Address())
+	}
+
+	// 解析邮件正文
+	section := &imap.BodySectionName{}
+	body := msg.GetBody(section)
+	if body != nil {
+		parseBody(body, email)
 	}
 
 	return email, nil
+}
+
+// parseBody 解析邮件正文
+func parseBody(r io.Reader, email *Email) {
+	msgReader, err := message.Read(r)
+	if err != nil {
+		return
+	}
+
+	if mr := msgReader.MultipartReader(); mr != nil {
+		for {
+			part, err := mr.NextPart()
+			if err != nil {
+				break
+			}
+
+			contentType, _, _ := part.Header.ContentType()
+
+			if strings.HasPrefix(contentType, "text/plain") {
+				data, err := io.ReadAll(part.Body)
+				if err == nil {
+					email.Content = string(data)
+					email.ContentType = "text/plain"
+				}
+			} else if strings.HasPrefix(contentType, "text/html") {
+				data, err := io.ReadAll(part.Body)
+				if err == nil {
+					email.ContentHTML = string(data)
+					if email.ContentType == "" {
+						email.ContentType = "text/html"
+					}
+				}
+			}
+
+			// 检查附件标记
+			if disp, _, _ := part.Header.ContentDisposition(); disp == "attachment" {
+				email.HasAttachment = true
+			}
+		}
+	} else {
+		// 单部分消息
+		contentType, _, _ := msgReader.Header.ContentType()
+		data, err := io.ReadAll(msgReader.Body)
+		if err == nil {
+			if strings.HasPrefix(contentType, "text/plain") {
+				email.Content = string(data)
+				email.ContentType = "text/plain"
+			} else if strings.HasPrefix(contentType, "text/html") {
+				email.ContentHTML = string(data)
+				email.ContentType = "text/html"
+			}
+		}
+	}
 }
 
 // FetchEmails 批量获取邮件
@@ -312,9 +421,14 @@ func (p *Net126Provider) FetchEmails(ctx context.Context, since time.Time, limit
 		return nil, err
 	}
 
-	summaryResults := make([]EmailSummary, 0, len(summaries))
+	result := &SyncResult{
+		TotalCount: len(summaries),
+		Summaries:  make([]EmailSummary, 0, len(summaries)),
+		Emails:     make([]Email, 0, len(summaries)),
+	}
+
 	for _, s := range summaries {
-		summaryResults = append(summaryResults, EmailSummary{
+		result.Summaries = append(result.Summaries, EmailSummary{
 			MessageID:     s.MessageID,
 			Subject:       s.Subject,
 			SenderName:    s.SenderName,
@@ -323,12 +437,6 @@ func (p *Net126Provider) FetchEmails(ctx context.Context, since time.Time, limit
 			HasAttachment: s.HasAttachment,
 			Size:          s.Size,
 		})
-	}
-
-	result := &SyncResult{
-		TotalCount: len(summaries),
-		Summaries:  summaryResults,
-		Emails:     make([]Email, 0, len(summaries)),
 	}
 
 	for _, summary := range summaries {
@@ -347,38 +455,37 @@ func (p *Net126Provider) FetchEmails(ctx context.Context, since time.Time, limit
 
 // Disconnect 断开连接
 func (p *Net126Provider) Disconnect() error {
-	if p.conn != nil {
-		p.conn.Write([]byte("A999 LOGOUT\r\n"))
-		p.conn.Close()
-		p.conn = nil
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.client != nil {
+		p.client.Logout()
+		p.client.Close()
+		p.client = nil
 	}
 	return nil
 }
 
 // IsConnected 检查是否已连接
 func (p *Net126Provider) IsConnected() bool {
-	return p.conn != nil
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.client != nil
+}
+
+// decodeSubject 解码RFC 2047 MIME编码的主题
+func decodeSubject(subject string) string {
+	if subject == "" {
+		return ""
+	}
+	dec := new(mime.WordDecoder)
+	decoded, err := dec.DecodeHeader(subject)
+	if err != nil {
+		return subject
+	}
+	return decoded
 }
 
 func init() {
 	Register("126", NewNet126Provider)
-}
-
-// decodeMIME1 decode RFC 2047 MIME encoded-word
-func decodeMIME1(s string) string {
-	// Simplified - just remove encoded words
-	if strings.HasPrefix(s, "=?") && strings.HasSuffix(s, "?=") {
-		parts := strings.Split(s, "?")
-		if len(parts) >= 4 {
-			return parts[3]
-		}
-	}
-	return s
-}
-
-// quoteString for IMAP
-func quoteString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "\"", "\\\"")
-	return "\"" + s + "\""
 }

@@ -75,6 +75,34 @@ mail-agent/
 ### 索引
 - 常用查询字段建立索引
 - 复合索引: `idx_user_category (user_id, category)`
+- 软删除字段索引: `idx_deleted_at (deleted_at)`
+
+### 数据库视图
+```sql
+-- 邮件统计视图
+CREATE OR REPLACE VIEW v_email_stats AS
+SELECT
+    user_id,
+    category,
+    COUNT(*) as total_count,
+    SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END) as unread_count,
+    SUM(CASE WHEN DATE(received_at) = CURDATE() THEN 1 ELSE 0 END) as today_count
+FROM emails
+WHERE deleted_at IS NULL
+GROUP BY user_id, category;
+
+-- 账户同步状态视图
+CREATE OR REPLACE VIEW v_account_sync_status AS
+SELECT
+    a.id as account_id,
+    a.account_email,
+    a.last_sync_at,
+    COUNT(e.id) as total_emails
+FROM email_accounts a
+LEFT JOIN emails e ON a.id = e.account_id AND e.deleted_at IS NULL
+WHERE a.deleted_at IS NULL
+GROUP BY a.id, a.account_email, a.last_sync_at;
+```
 
 ```sql
 CREATE TABLE email_accounts (
@@ -135,11 +163,19 @@ AGENT_API_KEY=xxx
 - 邮箱授权码必须加密存储
 - 使用AES-256-GCM加密
 - 密钥从环境变量读取
+- 每次加密生成随机IV，确保相同明文产生不同密文
+- 加密密文和IV分别存储（密文TEXT + IV VARCHAR(64)）
+- 禁止在日志、API响应中返回凭证明文
 
 ### API安全
 - 关键API添加认证
 - 限流保护
 - CORS配置
+
+### 敏感数据传输
+- 前端只传输授权码明文（HTTPS保护）
+- 后端接收后立即加密存储
+- API响应中不返回加密凭证相关字段
 
 ## 7. 测试规范
 
@@ -215,4 +251,5 @@ Closes #1
 ---
 
 > 生成时间: 2026-04-08
+> 更新: 2026-04-14 (补充安全凭证规范和数据库视图模式)
 > 适用于: 全栈开发
