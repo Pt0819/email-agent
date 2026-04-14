@@ -30,6 +30,14 @@ func InitConfig(configPath string) error {
 
 // InitDB 初始化数据库连接
 func InitDB() error {
+	fmt.Printf("数据库配置: host=%s, port=%d, user=%s, dbname=%s, password=%s\n",
+		GlobalConfig.Database.Host,
+		GlobalConfig.Database.Port,
+		GlobalConfig.Database.Username,
+		GlobalConfig.Database.DBName,
+		GlobalConfig.Database.Password,
+	)
+
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		GlobalConfig.Database.Username,
 		GlobalConfig.Database.Password,

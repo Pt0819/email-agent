@@ -14,7 +14,10 @@
       "Bash(powershell -Command \"go mod tidy\")",
       "Bash(powershell -Command \"go build -o server.exe ./cmd/server\")",
       "Bash(powershell -Command \"npm run build\")",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(go test:*)"
     ]
   }
 }
