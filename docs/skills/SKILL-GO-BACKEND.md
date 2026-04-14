@@ -243,6 +243,207 @@ go test -v ./server/...
 
 ---
 
+## 9. Provider模式架构
+
+### 适用场景
+- 需要支持多种外部服务提供商
+- 需要灵活切换/扩展不同实现
+- 需要Mock测试支持
+
+### 接口定义规范
+```go
+// EmailProvider 邮件提供商接口
+type EmailProvider interface {
+    // Name 返回提供商名称
+    Name() string
+    
+    // Connect 连接服务
+    Connect(ctx context.Context, email, credential string) error
+    
+    // TestConnection 测试连接
+    TestConnection(ctx context.Context) (*ConnectionResult, error)
+    
+    // FetchData 获取数据
+    FetchData(ctx context.Context, since time.Time, limit int) (*SyncResult, error)
+    
+    // Disconnect 断开连接
+    Disconnect() error
+    
+    // IsConnected 检查连接状态
+    IsConnected() bool
+}
+```
+
+### 工厂注册模式
+```go
+// 全局Provider注册表
+var providers = make(map[string]ProviderFactory)
+
+// ProviderFactory 工厂函数类型
+type ProviderFactory func(config *ProviderConfig) EmailProvider
+
+// Register 注册Provider工厂
+func Register(name string, factory ProviderFactory) {
+    providers[name] = factory
+}
+
+// Create 创建Provider实例
+func Create(name string, config *ProviderConfig) (EmailProvider, bool) {
+    factory, ok := providers[name]
+    if !ok {
+        return nil, false
+    }
+    return factory(config), true
+}
+
+// init函数自动注册
+func init() {
+    Register("126", NewNet126Provider)
+    Register("mock", NewMockProvider)
+}
+```
+
+### Mock Provider实现
+```go
+// MockProvider 用于测试的Mock实现
+type MockProvider struct {
+    connected      bool
+    mu             sync.Mutex
+    MockEmails     []*Email
+    MockConnectErr error  // 可配置的模拟错误
+}
+
+// 设置模拟数据的方法
+func (p *MockProvider) SetMockEmails(emails []*Email) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    p.MockEmails = emails
+}
+
+func (p *MockProvider) SetConnectError(err error) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    p.MockConnectErr = err
+}
+```
+
+### 文件组织结构
+```
+server/pkg/
+├── email/
+│   └── provider/
+│       ├── provider.go      # 接口定义 + 工厂注册
+│       ├── provider_test.go # 注册/创建测试
+│       ├── mock.go          # Mock实现
+│       ├── net126.go        # 126邮箱实现
+│       └── gmail.go         # Gmail实现 (待开发)
+│
+└── crypto/
+│   ├── credential.go        # 凭证加密
+│   └── credential_test.go   # 加密测试
+```
+
+---
+
+## 10. 凭证加密规范
+
+### 加密算法
+- 使用 **AES-256-GCM**（认证加密）
+- 密钥长度：32字节
+- IV/Nonce：GCM标准12字节
+
+### CredentialEncryptor实现
+```go
+// CredentialEncryptor 凭证加密器
+type CredentialEncryptor struct {
+    key []byte // 32字节密钥
+}
+
+// NewCredentialEncryptor 创建加密器
+func NewCredentialEncryptor(masterKey string) (*CredentialEncryptor, error) {
+    if len(masterKey) != 32 {
+        return nil, ErrInvalidKeyLength
+    }
+    return &CredentialEncryptor{key: []byte(masterKey)}, nil
+}
+
+// Encrypt 加密凭证，返回密文和IV
+func (e *CredentialEncryptor) Encrypt(plaintext string) (encrypted, iv string, err error) {
+    // 1. 创建AES cipher
+    block, _ := aes.NewCipher(e.key)
+    
+    // 2. 创建GCM模式
+    gcm, _ := cipher.NewGCM(block)
+    
+    // 3. 生成随机nonce
+    nonce := make([]byte, gcm.NonceSize())
+    io.ReadFull(rand.Reader, nonce)
+    
+    // 4. 加密
+    ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), nil)
+    
+    // 5. Base64编码返回
+    encrypted = base64.StdEncoding.EncodeToString(ciphertext)
+    iv = base64.StdEncoding.EncodeToString(nonce)
+    return encrypted, iv, nil
+}
+```
+
+### 数据库存储设计
+```sql
+CREATE TABLE email_accounts (
+    encrypted_credential TEXT NOT NULL COMMENT 'AES-256-GCM加密的授权码',
+    credential_iv VARCHAR(64) NOT NULL COMMENT '加密IV (Base64)',
+    ...
+);
+```
+
+### 密钥管理
+```go
+// 环境变量读取密钥
+masterKey := os.Getenv("CREDENTIAL_KEY")  // 必须是32字节
+
+// 生成新密钥
+func GenerateKey() (string, error) {
+    key := make([]byte, 32)
+    io.ReadFull(rand.Reader, key)
+    return string(key), nil
+}
+```
+
+### 测试规范
+```go
+func TestEncryptDecrypt(t *testing.T) {
+    tests := []struct {
+        name      string
+        plaintext string
+    }{
+        {"normal text", "hello world"},
+        {"chinese text", "这是一段中文文本"},
+        {"empty string", ""},
+        {"long text", strings.Repeat("a", 1000)},
+    }
+    
+    for _, tt := range tests {
+        encrypted, iv, _ := enc.Encrypt(tt.plaintext)
+        decrypted, _ := enc.Decrypt(encrypted, iv)
+        if decrypted != tt.plaintext {
+            t.Errorf("Decrypt mismatch")
+        }
+    }
+}
+
+// 重要测试：相同明文产生不同密文
+func TestEncryptProducesDifferentCiphertext(t *testing.T) {
+    encrypted1, iv1, _ := enc.Encrypt("same")
+    encrypted2, iv2, _ := enc.Encrypt("same")
+    // IV必须不同
+    if iv1 == iv2 { t.Error("IVs should differ") }
+}
+```
+
+---
+
 > 生成时间: 2026-04-08
-> 更新: 2026-04-08 (Clean Architecture结构)
+> 更新: 2026-04-14 (添加Provider模式和凭证加密规范)
 > 适用于: Go后端开发
