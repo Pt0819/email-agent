@@ -22,7 +22,7 @@ email-backend/
 │   │   └── config.go
 │   │
 │   ├── core/                    # 核心初始化
-│   │   └── core.go              # InitConfig, InitDB, Close
+│   │   └── core.go              # InitConfig, InitDB, Close, InitEncryptor, InitProviders
 │   │
 │   ├── global/                  # 全局对象
 │   │   └── global.go
@@ -37,6 +37,15 @@ email-backend/
 │   │   └── response/           # 响应DTO
 │   │       └── response.go
 │   │
+│   ├── pkg/                     # 公共包
+│   │   ├── crypto/              # 加密工具
+│   │   │   └── credential.go    # AES-256-GCM凭证加密
+│   │   └── email/
+│   │       └── provider/        # 邮件Provider接口
+│   │           ├── provider.go  # Provider接口定义
+│   │           ├── mock.go      # Mock实现(测试用)
+│   │           └── net126.go    # 126邮箱实现
+│   │
 │   ├── repository/              # 数据访问层
 │   │   └── repository.go
 │   │
@@ -44,13 +53,14 @@ email-backend/
 │   │   └── router.go
 │   │
 │   └── service/                # 业务逻辑层
-│       └── service.go
+│       ├── service.go          # 基础服务
+│       └── sync_service.go     # 同步服务
 │
 ├── config/                      # 配置文件
 │   └── config.yaml
 │
 ├── sql/                         # 数据库脚本
-│   └── *.sql
+│   └── init.sql
 │
 ├── go.mod
 ├── go.sum
@@ -109,6 +119,7 @@ go get github.com/spf13/viper
 go get gorm.io/gorm
 go get gorm.io/driver/mysql
 go get github.com/redis/go-redis/v9
+go get github.com/emersion/go-imap
 ```
 
 ### 配置文件格式 (YAML)
@@ -123,13 +134,16 @@ database:
   username: root
   password: ${DB_PASSWORD}  # 从环境变量读取
   dbname: email_system
+
+security:
+  credential_key: ${CREDENTIAL_KEY}  # 32字节密钥用于凭证加密
 ```
 
 ### 环境变量使用
 ```go
 // 从环境变量读取敏感信息
 os.Getenv("DB_PASSWORD")
-os.Getenv("CREDENTIAL_KEY")
+os.Getenv("CREDENTIAL_KEY")  // 32字节密钥
 ```
 
 ## 5. API响应规范
@@ -203,13 +217,92 @@ type ListRequest struct {
 }
 
 type CreateAccountRequest struct {
-    Provider string `json:"provider" binding:"required"`
-    Email    string `json:"email" binding:"required,email"`
-    Password string `json:"password"`
+    Provider   string `json:"provider" binding:"required"`
+    Email      string `json:"email" binding:"required,email"`
+    Credential string `json:"credential" binding:"required"`  # 授权码
 }
 ```
 
-## 7. 快速开始命令
+## 7. Provider插件架构
+
+### 实现新的邮件Provider
+
+```go
+// 1. 在 server/pkg/email/provider/ 下创建新文件
+// 例如: outlook.go
+
+package provider
+
+type OutlookProvider struct {
+    // 配置
+}
+
+func NewOutlookProvider(config *ProviderConfig) EmailProvider {
+    return &OutlookProvider{...}
+}
+
+func (p *OutlookProvider) Name() string { return "outlook" }
+func (p *OutlookProvider) Connect(ctx context.Context, email, credential string) error { ... }
+func (p *OutlookProvider) TestConnection(ctx context.Context) (*ConnectionResult, error) { ... }
+func (p *OutlookProvider) FetchEmailList(ctx context.Context, since time.Time, limit int) ([]*EmailSummary, error) { ... }
+func (p *OutlookProvider) FetchEmailDetail(ctx context.Context, messageID string) (*Email, error) { ... }
+func (p *OutlookProvider) FetchEmails(ctx context.Context, since time.Time, limit int) (*SyncResult, error) { ... }
+func (p *OutlookProvider) Disconnect() error { ... }
+func (p *OutlookProvider) IsConnected() bool { ... }
+
+func init() {
+    Register("outlook", NewOutlookProvider)  // 注册到工厂
+}
+```
+
+### 使用Provider
+```go
+// 创建Provider
+provider, ok := provider.Create("126", &provider.ProviderConfig{
+    Server: "imap.126.com",
+    Port:   993,
+    UseSSL: true,
+})
+if !ok {
+    return errors.New("不支持的邮件提供商")
+}
+
+// 连接
+err := provider.Connect(ctx, email, credential)
+
+// 获取邮件
+result, err := provider.FetchEmails(ctx, since, limit)
+```
+
+## 8. 凭证加密使用
+
+### 初始化加密器
+```go
+// 在 core/core.go 中
+func InitEncryptor() error {
+    key := GlobalConfig.Security.CredentialKey
+    if key == "" {
+        return fmt.Errorf("凭证加密密钥未配置")
+    }
+    enc, err := crypto.NewCredentialEncryptor(key)
+    if err != nil {
+        return err
+    }
+    GlobalEncryptor = enc
+    return nil
+}
+```
+
+### 加密/解密凭证
+```go
+// 加密
+encrypted, iv, err := global.Encryptor().Encrypt(credential)
+
+// 解密
+credential, err := global.Encryptor().Decrypt(encrypted, iv)
+```
+
+## 9. 快速开始命令
 
 ```bash
 # 1. 初始化项目
@@ -219,7 +312,7 @@ go mod tidy
 
 # 2. 编译运行
 go build -o server.exe .
-go run cmd/server/main.go
+go run .
 
 # 3. 开发模式 (热重载)
 # 需要安装air: go install github.com/air-verse/air@latest
@@ -230,7 +323,7 @@ go test ./...
 go test -v ./server/...
 ```
 
-## 8. 常用依赖
+## 10. 常用依赖
 
 | 依赖 | 版本 | 用途 |
 |------|------|------|
@@ -238,11 +331,11 @@ go test -v ./server/...
 | viper | v1.18.x | 配置管理 |
 | gorm | v1.25.x | ORM框架 |
 | mysql | v1.5.x | MySQL驱动 |
+| go-imap | v1.2.x | IMAP客户端 |
 | go-redis | v9.3.x | Redis客户端 |
-| logrus | v1.9.x | 日志 |
 
 ---
 
 > 生成时间: 2026-04-08
-> 更新: 2026-04-08 (Clean Architecture结构)
+> 更新: 2026-04-09 (新增Provider插件架构、凭证加密、同步服务)
 > 适用于: Go后端开发
