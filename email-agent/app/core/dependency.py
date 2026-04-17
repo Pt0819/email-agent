@@ -5,7 +5,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from app.config import get_config
+from app.core.config import get_config
 from app.services.base_service import BaseService
 from app.services.classify_service import ClassifyService
 from app.services.extract_service import ExtractService
