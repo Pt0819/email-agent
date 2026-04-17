@@ -39,5 +39,8 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 
 		// 同步路由
 		v1.SetupSyncRoutes(v1Group, agentClient)
+
+		// 摘要路由
+		v1.SetupSummaryRoutes(v1Group, agentClient, emailRepo)
 	}
 }

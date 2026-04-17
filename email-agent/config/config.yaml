@@ -36,6 +36,13 @@ llm:
       max_tokens: 4096
       base_url: "https://api.deepseek.com/v1"
 
+    # Mock Provider - 用于测试，无需API Key
+    mock:
+      enabled: true
+      model: "mock-llm"
+      temperature: 0.3
+      max_tokens: 4096
+
 # 分类配置
 classification:
   auto_classify: true
