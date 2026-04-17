@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter
 
-from app.schemas.health import HealthResponse
+from app.schemas import HealthResponse
 from app.llm import get_llm_manager
 
 router = APIRouter(prefix="/health", tags=["系统"])
