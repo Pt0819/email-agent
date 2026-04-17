@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"email-backend/server/core"
+	"email-backend/server/model"
 	"email-backend/server/router"
 
 	"github.com/gin-gonic/gin"
@@ -23,26 +24,35 @@ func main() {
 	}
 	defer core.Close()
 
-	// 3. 初始化加密器
+	// 3. 自动迁移表结构
+	if err := core.GlobalDB.AutoMigrate(
+		&model.Email{},
+		&model.EmailAccount{},
+		&model.ActionItem{},
+	); err != nil {
+		log.Printf("警告: 自动迁移失败: %v", err)
+	}
+
+	// 4. 初始化加密器
 	if err := core.InitEncryptor(); err != nil {
 		log.Fatalf("初始化加密器失败: %v", err)
 	}
 
-	// 4. 初始化邮件Provider
+	// 5. 初始化邮件Provider
 	core.InitProviders()
 
-	// 5. 设置Gin模式
+	// 6. 设置Gin模式
 	if core.GlobalConfig.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 6. 创建Gin实例
+	// 7. 创建Gin实例
 	r := gin.New()
 
-	// 7. 设置路由（传入配置以初始化Agent客户端）
+	// 8. 设置路由（传入配置以初始化Agent客户端）
 	router.Setup(r, core.GlobalConfig)
 
-	// 8. 启动服务
+	// 9. 启动服务
 	addr := fmt.Sprintf(":%d", core.GlobalConfig.Server.Port)
 	log.Printf("服务启动在 %s", addr)
 	if err := r.Run(addr); err != nil {
