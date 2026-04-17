@@ -130,15 +130,21 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 
 	result.AccountEmail = account.AccountEmail
 
-	// 解密凭证
-	credential, err := global.Encryptor().Decrypt(
-		account.EncryptedCredential,
-		account.CredentialIV,
-	)
-	if err != nil {
-		result.Success = false
-		result.Message = fmt.Sprintf("解密凭证失败: %v", err)
-		return result
+	// 解密凭证（Mock Provider跳过解密）
+	var credential string
+	if account.Provider == "mock" {
+		credential = "mock-credential"
+	} else {
+		var err error
+		credential, err = global.Encryptor().Decrypt(
+			account.EncryptedCredential,
+			account.CredentialIV,
+		)
+		if err != nil {
+			result.Success = false
+			result.Message = fmt.Sprintf("解密凭证失败: %v", err)
+			return result
+		}
 	}
 
 	// 创建Provider

@@ -14,6 +14,7 @@ from app.core.config import get_config
 from app.llm.provider import BaseLLMProvider, Message, ChatCompletionResponse
 from app.llm.zhipu import ZhipuProvider
 from app.llm.deepseek import DeepSeekProvider
+from app.llm.mock import MockLLMProvider
 
 
 class LLMManager:
@@ -23,6 +24,7 @@ class LLMManager:
     PROVIDER_CLASSES = {
         "zhipu": ZhipuProvider,
         "deepseek": DeepSeekProvider,
+        "mock": MockLLMProvider,  # Mock Provider始终可用
     }
 
     def __init__(self):
@@ -39,6 +41,10 @@ class LLMManager:
         """
         config = get_config()
         self._default_provider = config.llm.default_provider
+
+        # 始终初始化Mock Provider作为fallback
+        self._providers["mock"] = MockLLMProvider()
+        logger.info("Provider mock 初始化成功 (fallback)")
 
         for provider_name, provider_config in config.llm.providers.items():
             if not provider_config.enabled:
@@ -69,8 +75,10 @@ class LLMManager:
 
         self._initialized = True
 
-        if not self._providers:
-            logger.warning("没有可用的LLM Provider")
+        if len(self._providers) == 1 and "mock" in self._providers:
+            # 只有mock provider可用
+            logger.warning("没有配置真实LLM Provider，将使用Mock Provider进行测试")
+            self._default_provider = "mock"
         else:
             logger.info(
                 f"LLM Manager初始化完成, "

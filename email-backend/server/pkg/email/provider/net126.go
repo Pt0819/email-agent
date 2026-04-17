@@ -165,29 +165,28 @@ func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, li
 		return nil, fmt.Errorf("未连接")
 	}
 
-	// 选择收件箱
-	if _, err := p.client.Select("INBOX", false); err != nil {
-		return nil, fmt.Errorf("选择收件箱失败: %w", err)
+	// 126邮箱安全策略可能阻止SELECT，先尝试SELECT再尝试EXAMINE
+	mailbox, err := p.client.Select("INBOX", true) // true = readonly
+	if err != nil {
+		// SELECT失败时尝试只读方式
+		mailbox, err = p.client.Select("INBOX", false)
+		if err != nil {
+			return nil, fmt.Errorf("选择收件箱失败: %w", err)
+		}
 	}
+	_ = mailbox
 
-	// 搜索未读邮件
+	// 搜索邮件
 	criteria := imap.NewSearchCriteria()
 	if !since.IsZero() {
 		criteria.Since = since
 	}
-	criteria.WithoutFlags = []string{imap.SeenFlag}
 
-	uids, err := p.client.Search(criteria)
+	uids, err := p.client.UidSearch(criteria)
 	if err != nil {
-		return nil, fmt.Errorf("搜索邮件失败: %w", err)
-	}
-
-	// 没有未读时获取最新邮件
-	if len(uids) == 0 {
-		criteriaAll := imap.NewSearchCriteria()
-		uids, err = p.client.Search(criteriaAll)
+		uids, err = p.client.UidSearch(imap.NewSearchCriteria())
 		if err != nil {
-			return nil, fmt.Errorf("搜索所有邮件失败: %w", err)
+			return nil, fmt.Errorf("搜索邮件失败: %w", err)
 		}
 	}
 
@@ -204,7 +203,6 @@ func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, li
 		uidSet.AddNum(uid)
 	}
 
-	// 获取信封+大小+BodyStructure（用于判断附件）
 	fetchItems := []imap.FetchItem{
 		imap.FetchEnvelope,
 		imap.FetchRFC822Size,
@@ -293,15 +291,20 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 	}
 
 	// 选择收件箱
-	if _, err := p.client.Select("INBOX", false); err != nil {
-		return nil, fmt.Errorf("选择收件箱失败: %w", err)
+	mailbox, err := p.client.Select("INBOX", true)
+	if err != nil {
+		mailbox, err = p.client.Select("INBOX", false)
+		if err != nil {
+			return nil, fmt.Errorf("选择收件箱失败: %w", err)
+		}
 	}
+	_ = mailbox
 
 	// 搜索指定Message-ID
 	criteria := imap.NewSearchCriteria()
 	criteria.Header = map[string][]string{"Message-ID": {messageID}}
 
-	uids, err := p.client.Search(criteria)
+	uids, err := p.client.UidSearch(criteria)
 	if err != nil {
 		return nil, fmt.Errorf("搜索邮件失败: %w", err)
 	}
@@ -312,7 +315,7 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 	uidSet := new(imap.SeqSet)
 	uidSet.AddNum(uids[0])
 
-	// 获取完整邮件（RFC822包含header和body）
+	// 获取完整邮件
 	fetchItems := []imap.FetchItem{imap.FetchEnvelope, imap.FetchBodyStructure, imap.FetchRFC822}
 	messages := make(chan *imap.Message, 1)
 	done := make(chan error, 1)
