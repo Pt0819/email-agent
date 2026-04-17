@@ -1,4 +1,4 @@
-// Package provider 邮件提供商实现 - 网易126邮箱
+// Package provider 邮件提供商实现 - Gmail
 package provider
 
 import (
@@ -14,12 +14,13 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message"
-	_ "github.com/emersion/go-message/charset" // 注册字符集解码器
+	_ "github.com/emersion/go-message/charset"
 )
 
-// Net126Provider 网易126邮箱Provider
+// GmailProvider Gmail邮箱Provider
 // 使用 go-imap 库实现 IMAP 协议
-type Net126Provider struct {
+// 认证方式：App Password（应用专用密码）
+type GmailProvider struct {
 	name       string
 	server     string
 	port       int
@@ -30,16 +31,15 @@ type Net126Provider struct {
 	timeout    time.Duration
 	mu         sync.Mutex
 
-	// 重试配置
 	maxRetries    int
 	retryInterval time.Duration
 }
 
-// NewNet126Provider 创建126邮箱Provider
-func NewNet126Provider(config *ProviderConfig) EmailProvider {
-	p := &Net126Provider{
-		name:          "126",
-		server:        "imap.126.com",
+// NewGmailProvider 创建Gmail Provider
+func NewGmailProvider(config *ProviderConfig) EmailProvider {
+	p := &GmailProvider{
+		name:          "gmail",
+		server:        "imap.gmail.com",
 		port:          993,
 		useSSL:        true,
 		timeout:       30 * time.Second,
@@ -63,12 +63,12 @@ func NewNet126Provider(config *ProviderConfig) EmailProvider {
 }
 
 // Name 返回提供商名称
-func (p *Net126Provider) Name() string {
+func (p *GmailProvider) Name() string {
 	return p.name
 }
 
-// Connect 连接邮箱服务器（带重试机制）
-func (p *Net126Provider) Connect(ctx context.Context, email, credential string) error {
+// Connect 连接Gmail服务器
+func (p *GmailProvider) Connect(ctx context.Context, email, credential string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -90,7 +90,8 @@ func (p *Net126Provider) Connect(ctx context.Context, email, credential string) 
 
 		// 认证失败不重试
 		if strings.Contains(err.Error(), "认证失败") ||
-			strings.Contains(err.Error(), "LOGIN failed") {
+			strings.Contains(err.Error(), "LOGIN failed") ||
+			strings.Contains(err.Error(), "Invalid credentials") {
 			return err
 		}
 
@@ -108,7 +109,7 @@ func (p *Net126Provider) Connect(ctx context.Context, email, credential string) 
 }
 
 // connectOnce 单次连接尝试
-func (p *Net126Provider) connectOnce() error {
+func (p *GmailProvider) connectOnce() error {
 	addr := fmt.Sprintf("%s:%d", p.server, p.port)
 
 	var c *client.Client
@@ -134,32 +135,11 @@ func (p *Net126Provider) connectOnce() error {
 		return fmt.Errorf("认证失败: %w", err)
 	}
 
-	// 发送ID命令标识客户端身份（126邮箱要求）
-	// 避免被标记为"Unsafe Login"
-	if err := p.sendIDCommand(); err != nil {
-		p.client.Close()
-		p.client = nil
-		return fmt.Errorf("发送客户端标识失败: %w", err)
-	}
-
 	return nil
 }
 
-// sendIDCommand 发送IMAP ID命令标识客户端
-// 126邮箱要求发送ID命令，否则SELECT会被标记为"Unsafe Login"
-func (p *Net126Provider) sendIDCommand() error {
-	cmd := &imap.Command{
-		Name: "ID",
-		Arguments: []interface{}{
-			imap.RawString(`("name" "Foxmail" "version" "7.2" "vendor" "Tencent")`),
-		},
-	}
-	_, err := p.client.Execute(cmd, nil)
-	return err
-}
-
 // TestConnection 测试连接
-func (p *Net126Provider) TestConnection(ctx context.Context) (*ConnectionResult, error) {
+func (p *GmailProvider) TestConnection(ctx context.Context) (*ConnectionResult, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -174,11 +154,11 @@ func (p *Net126Provider) TestConnection(ctx context.Context) (*ConnectionResult,
 		}, nil
 	}
 
-	return &ConnectionResult{Success: true, Message: "连接正常"}, nil
+	return &ConnectionResult{Success: true, Message: "Gmail连接正常"}, nil
 }
 
 // FetchEmailList 获取邮件列表
-func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, limit int) ([]*EmailSummary, error) {
+func (p *GmailProvider) FetchEmailList(ctx context.Context, since time.Time, limit int) ([]*EmailSummary, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -186,18 +166,9 @@ func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, li
 		return nil, fmt.Errorf("未连接")
 	}
 
-	// 126邮箱要求：每次SELECT前发送ID命令
-	// 避免被标记为"Unsafe Login"
-	p.sendIDCommand()
-
-	// 126邮箱安全策略可能阻止SELECT，先尝试SELECT再尝试EXAMINE
-	mailbox, err := p.client.Select("INBOX", true) // true = readonly
+	mailbox, err := p.client.Select("INBOX", true)
 	if err != nil {
-		// SELECT失败时尝试只读方式
-		mailbox, err = p.client.Select("INBOX", false)
-		if err != nil {
-			return nil, fmt.Errorf("选择收件箱失败: %w", err)
-		}
+		return nil, fmt.Errorf("选择收件箱失败: %w", err)
 	}
 	_ = mailbox
 
@@ -257,14 +228,14 @@ func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, li
 }
 
 // parseEnvelope 解析邮件信封
-func (p *Net126Provider) parseEnvelope(msg *imap.Message) *EmailSummary {
+func (p *GmailProvider) parseEnvelope(msg *imap.Message) *EmailSummary {
 	if msg == nil || msg.Envelope == nil {
 		return nil
 	}
 
 	summary := &EmailSummary{
 		MessageID:  msg.Envelope.MessageId,
-		Subject:    decodeSubject(msg.Envelope.Subject),
+		Subject:    decodeGmailSubject(msg.Envelope.Subject),
 		ReceivedAt: msg.Envelope.Date,
 		Size:       int(msg.Size),
 	}
@@ -282,32 +253,21 @@ func (p *Net126Provider) parseEnvelope(msg *imap.Message) *EmailSummary {
 	return summary
 }
 
-// hasAttachment 递归检查BodyStructure是否有附件
-func hasAttachment(bs *imap.BodyStructure) bool {
-	if bs == nil {
-		return false
+// decodeGmailSubject 解码邮件主题
+func decodeGmailSubject(subject string) string {
+	if subject == "" {
+		return ""
 	}
-
-	if bs.Disposition == "attachment" {
-		return true
+	dec := new(mime.WordDecoder)
+	decoded, err := dec.DecodeHeader(subject)
+	if err != nil {
+		return subject
 	}
-
-	for _, part := range bs.Parts {
-		if hasAttachment(part) {
-			return true
-		}
-	}
-
-	// 非文本非多部分的独立部分视为附件
-	if len(bs.Parts) == 0 && bs.MIMEType != "text" && bs.MIMEType != "multipart" && bs.MIMEType != "" {
-		return true
-	}
-
-	return false
+	return decoded
 }
 
 // FetchEmailDetail 获取邮件详情
-func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string) (*Email, error) {
+func (p *GmailProvider) FetchEmailDetail(ctx context.Context, messageID string) (*Email, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -315,17 +275,12 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 		return nil, fmt.Errorf("未连接")
 	}
 
-	// 选择收件箱
 	mailbox, err := p.client.Select("INBOX", true)
 	if err != nil {
-		mailbox, err = p.client.Select("INBOX", false)
-		if err != nil {
-			return nil, fmt.Errorf("选择收件箱失败: %w", err)
-		}
+		return nil, fmt.Errorf("选择收件箱失败: %w", err)
 	}
 	_ = mailbox
 
-	// 搜索指定Message-ID
 	criteria := imap.NewSearchCriteria()
 	criteria.Header = map[string][]string{"Message-ID": {messageID}}
 
@@ -340,7 +295,6 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 	uidSet := new(imap.SeqSet)
 	uidSet.AddNum(uids[0])
 
-	// 获取完整邮件
 	fetchItems := []imap.FetchItem{imap.FetchEnvelope, imap.FetchBodyStructure, imap.FetchRFC822}
 	messages := make(chan *imap.Message, 1)
 	done := make(chan error, 1)
@@ -357,10 +311,9 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 		return nil, fmt.Errorf("获取邮件内容为空")
 	}
 
-	// 构建返回对象
 	email := &Email{
 		MessageID:     msg.Envelope.MessageId,
-		Subject:       decodeSubject(msg.Envelope.Subject),
+		Subject:       decodeGmailSubject(msg.Envelope.Subject),
 		ReceivedAt:    msg.Envelope.Date,
 		HasAttachment: hasAttachment(msg.BodyStructure),
 	}
@@ -379,18 +332,17 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 		email.CC = append(email.CC, cc.Address())
 	}
 
-	// 解析邮件正文
 	section := &imap.BodySectionName{}
 	body := msg.GetBody(section)
 	if body != nil {
-		parseBody(body, email)
+		parseGmailBody(body, email)
 	}
 
 	return email, nil
 }
 
-// parseBody 解析邮件正文
-func parseBody(r io.Reader, email *Email) {
+// parseGmailBody 解析邮件正文
+func parseGmailBody(r io.Reader, email *Email) {
 	msgReader, err := message.Read(r)
 	if err != nil {
 		return
@@ -421,13 +373,11 @@ func parseBody(r io.Reader, email *Email) {
 				}
 			}
 
-			// 检查附件标记
 			if disp, _, _ := part.Header.ContentDisposition(); disp == "attachment" {
 				email.HasAttachment = true
 			}
 		}
 	} else {
-		// 单部分消息
 		contentType, _, _ := msgReader.Header.ContentType()
 		data, err := io.ReadAll(msgReader.Body)
 		if err == nil {
@@ -443,7 +393,7 @@ func parseBody(r io.Reader, email *Email) {
 }
 
 // FetchEmails 批量获取邮件
-func (p *Net126Provider) FetchEmails(ctx context.Context, since time.Time, limit int) (*SyncResult, error) {
+func (p *GmailProvider) FetchEmails(ctx context.Context, since time.Time, limit int) (*SyncResult, error) {
 	summaries, err := p.FetchEmailList(ctx, since, limit)
 	if err != nil {
 		return nil, err
@@ -482,7 +432,7 @@ func (p *Net126Provider) FetchEmails(ctx context.Context, since time.Time, limit
 }
 
 // Disconnect 断开连接
-func (p *Net126Provider) Disconnect() error {
+func (p *GmailProvider) Disconnect() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -495,25 +445,12 @@ func (p *Net126Provider) Disconnect() error {
 }
 
 // IsConnected 检查是否已连接
-func (p *Net126Provider) IsConnected() bool {
+func (p *GmailProvider) IsConnected() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.client != nil
 }
 
-// decodeSubject 解码RFC 2047 MIME编码的主题
-func decodeSubject(subject string) string {
-	if subject == "" {
-		return ""
-	}
-	dec := new(mime.WordDecoder)
-	decoded, err := dec.DecodeHeader(subject)
-	if err != nil {
-		return subject
-	}
-	return decoded
-}
-
 func init() {
-	Register("126", NewNet126Provider)
+	Register("gmail", NewGmailProvider)
 }
