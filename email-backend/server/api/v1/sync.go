@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"email-backend/server/global"
+	"email-backend/server/pkg/agent"
 	"email-backend/server/repository"
 	"email-backend/server/service"
 
@@ -22,10 +23,10 @@ func NewSyncHandler(syncSvc *service.SyncService) *SyncHandler {
 }
 
 // SetupSyncRoutes 注册同步路由
-func SetupSyncRoutes(r *gin.RouterGroup) {
+func SetupSyncRoutes(r *gin.RouterGroup, agentClient *agent.Client) {
 	accountRepo := repository.NewAccountRepository(global.DB())
 	emailRepo := repository.NewEmailRepository(global.DB())
-	syncSvc := service.NewSyncService(accountRepo, emailRepo)
+	syncSvc := service.NewSyncService(accountRepo, emailRepo, agentClient)
 	h := NewSyncHandler(syncSvc)
 
 	sync := r.Group("/sync")
