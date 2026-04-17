@@ -21,7 +21,7 @@ type Email struct {
 	ContentType   string         `gorm:"size:20;default:text/plain" json:"content_type"`
 	Category      string         `gorm:"size:50;default:unclassified;index" json:"category"`
 	Priority      string         `gorm:"size:20;default:medium" json:"priority"`
-	Confidence    float64        `gorm:"type:decimal(5,4);default:0" json:"confidence"`
+	Confidence    float64        `gorm:"column:confidence_score;type:decimal(5,4);default:0" json:"confidence"`
 	Status        string         `gorm:"size:20;default:unread;index" json:"status"`
 	IsProcessed   bool           `gorm:"default:false" json:"is_processed"`
 	HasAttachment bool           `gorm:"default:false" json:"has_attachment"`
