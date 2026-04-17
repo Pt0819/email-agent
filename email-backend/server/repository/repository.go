@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"email-backend/server/model"
 	emailRequest "email-backend/server/model/request"
@@ -107,6 +108,19 @@ func (r *EmailRepository) CountByAccount(ctx context.Context, accountID int64) (
 		Where("account_id = ?", accountID).
 		Count(&count).Error
 	return count, err
+}
+
+// FindByUserIDAndDateRange 根据用户ID和日期范围查询
+func (r *EmailRepository) FindByUserIDAndDateRange(ctx context.Context, userID int64, startTime, endTime time.Time) ([]*model.Email, error) {
+	var emails []*model.Email
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND received_at >= ? AND received_at < ?", userID, startTime, endTime).
+		Order("received_at DESC").
+		Find(&emails).Error
+	if err != nil {
+		return nil, err
+	}
+	return emails, nil
 }
 
 // AccountRepository 账户数据访问

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Mail, Settings, Home } from 'lucide-react';
+import { Mail, Settings, LayoutDashboard, List } from 'lucide-react';
 
 export default function AppLayout() {
   const location = useLocation();
@@ -26,12 +26,24 @@ export default function AppLayout() {
               <Link
                 to="/"
                 className={`p-2 rounded-lg transition-colors ${
-                  isActive('/')
+                  isActive('/') && location.pathname === '/'
                     ? 'text-primary-600 bg-primary-50'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
+                title="仪表盘"
               >
-                <Home className="w-5 h-5" />
+                <LayoutDashboard className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/emails"
+                className={`p-2 rounded-lg transition-colors ${
+                  isActive('/emails')
+                    ? 'text-primary-600 bg-primary-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                title="邮件列表"
+              >
+                <List className="w-5 h-5" />
               </Link>
               <Link
                 to="/settings"
@@ -40,6 +52,7 @@ export default function AppLayout() {
                     ? 'text-primary-600 bg-primary-50'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
+                title="设置"
               >
                 <Settings className="w-5 h-5" />
               </Link>

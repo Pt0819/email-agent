@@ -6,12 +6,13 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
 )
 
 var (
-	ErrInvalidKeyLength = errors.New("密钥长度必须为32字节")
+	ErrInvalidKeyLength = errors.New("密钥长度必须为32字节或64字符的hex字符串")
 	ErrInvalidCiphertext = errors.New("无效的密文")
 	ErrInvalidIV        = errors.New("无效的IV")
 	ErrDecryptFailed    = errors.New("解密失败")
@@ -24,12 +25,27 @@ type CredentialEncryptor struct {
 }
 
 // NewCredentialEncryptor 创建凭证加密器
-// masterKey 必须是32字节的密钥字符串
+// masterKey 可以是32字节的原始字符串，或64字符的hex编码字符串
 func NewCredentialEncryptor(masterKey string) (*CredentialEncryptor, error) {
-	if len(masterKey) != 32 {
-		return nil, ErrInvalidKeyLength
+	var key []byte
+
+	// 尝试解析为hex字符串
+	if len(masterKey) == 64 {
+		decoded, err := hex.DecodeString(masterKey)
+		if err == nil && len(decoded) == 32 {
+			key = decoded
+		}
 	}
-	return &CredentialEncryptor{key: []byte(masterKey)}, nil
+
+	// 如果不是hex，则直接使用原始字节
+	if key == nil {
+		if len(masterKey) != 32 {
+			return nil, ErrInvalidKeyLength
+		}
+		key = []byte(masterKey)
+	}
+
+	return &CredentialEncryptor{key: key}, nil
 }
 
 // Encrypt 加密凭证

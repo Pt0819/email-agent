@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
+import Dashboard from './pages/Dashboard';
 import EmailList from './pages/EmailList';
 import EmailDetail from './pages/EmailDetail';
 import Settings from './pages/Settings';
@@ -11,6 +12,10 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <Dashboard />,
+      },
+      {
+        path: 'emails',
         element: <EmailList />,
       },
       {

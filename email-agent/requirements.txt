@@ -15,7 +15,7 @@ chromadb==0.4.22
 
 # Redis
 redis==5.0.1
-hiredis==2.3.3
+hiredis==3.3.1
 
 # HTTP客户端
 httpx==0.26.0

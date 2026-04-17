@@ -23,9 +23,133 @@ type MockProvider struct {
 
 // NewMockProvider 创建Mock Provider
 func NewMockProvider(config *ProviderConfig) EmailProvider {
-	return &MockProvider{
+	p := &MockProvider{
 		name:      "mock",
 		connected: false,
+	}
+
+	// 初始化时加载模拟邮件数据
+	p.loadMockEmails()
+
+	return p
+}
+
+// loadMockEmails 加载模拟邮件数据
+func (p *MockProvider) loadMockEmails() {
+	now := time.Now()
+
+	// 模拟不同类别的邮件数据
+	p.MockEmails = []*Email{
+		// 1. 紧急工作邮件
+		{
+			MessageID:     "<mock-001@mock.local>",
+			SenderName:    "张三",
+			SenderEmail:   "zhangsan@company.com",
+			Subject:       "【紧急】项目上线前最后检查 - 请尽快确认",
+			Content:       "您好，项目将于明天上午10点上线，请务必在今天下班前完成最后的代码审查和测试。如有问题请立即联系我。",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: true,
+			ReceivedAt:    now.Add(-2 * time.Hour),
+		},
+		// 2. 普通工作邮件
+		{
+			MessageID:     "<mock-002@mock.local>",
+			SenderName:    "李四",
+			SenderEmail:   "lisi@company.com",
+			Subject:       "关于下周会议安排的通知",
+			Content:       "各位同事好，下周三下午2点在会议室A召开项目进度会议，请提前准备好各自负责模块的进度报告。谢谢！",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-5 * time.Hour),
+		},
+		// 3. 个人邮件
+		{
+			MessageID:     "<mock-003@mock.local>",
+			SenderName:    "王五",
+			SenderEmail:   "wangwu@personal.com",
+			Subject:       "周末聚会邀请",
+			Content:       "嗨，这周六晚上7点我们在老地方聚会，好久没见了，大家都很想你。有空的话记得来哦！",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-24 * time.Hour),
+		},
+		// 4. 订阅邮件
+		{
+			MessageID:     "<mock-004@mock.local>",
+			SenderName:    "技术周刊",
+			SenderEmail:   "newsletter@techweekly.com",
+			Subject:       "【技术周刊】本周热门：AI最新进展、Go并发模式、云原生实践",
+			Content:       "本期内容：1. GPT-5最新动态解析 2. Go语言高并发模式实战 3. Kubernetes最佳实践分享 4. 微服务架构设计模式...",
+			ContentHTML:   "<html><body><h1>技术周刊</h1><p>本期内容精彩...</p></body></html>",
+			ContentType:   "text/html",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-48 * time.Hour),
+		},
+		// 5. 系统通知
+		{
+			MessageID:     "<mock-005@mock.local>",
+			SenderName:    "系统通知",
+			SenderEmail:   "noreply@system.com",
+			Subject:       "您的账户安全提醒",
+			Content:       "尊敬的用户，我们检测到您的账户在新设备上登录。如果这不是您本人的操作，请立即修改密码并联系客服。",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-3 * time.Hour),
+		},
+		// 6. 营销推广
+		{
+			MessageID:     "<mock-006@mock.local>",
+			SenderName:    "商城优惠",
+			SenderEmail:   "promo@shop.com",
+			Subject:       "限时特惠！全场5折起，仅限今日",
+			Content:       "亲爱的用户，今日限时特惠活动开启！全场商品5折起，更有满减优惠等你来拿。点击查看详情...",
+			ContentHTML:   "<html><body><h1>限时特惠</h1><p>全场5折起...</p></body></html>",
+			ContentType:   "text/html",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-12 * time.Hour),
+		},
+		// 7. 包含会议信息的邮件
+		{
+			MessageID:     "<mock-007@mock.local>",
+			SenderName:    "会议助手",
+			SenderEmail:   "meeting@company.com",
+			Subject:       "会议邀请：产品评审会 - 周五 14:00",
+			Content:       "您已被邀请参加产品评审会议\n\n时间：本周五 14:00-16:00\n地点：会议室B\n参会人员：产品部、研发部、设计部\n\n会议链接：https://meeting.company.com/room/123\n\n请提前准备相关材料。",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: true,
+			ReceivedAt:    now.Add(-6 * time.Hour),
+		},
+		// 8. 包含待办事项的邮件
+		{
+			MessageID:     "<mock-008@mock.local>",
+			SenderName:    "项目经理",
+			SenderEmail:   "pm@company.com",
+			Subject:       "本周任务清单 - 请按时完成",
+			Content:       "本周需要完成的任务：\n\n1. 完成API文档编写（周三前）\n2. 代码评审（周四前）\n3. 提交测试报告（周五前）\n\n如有问题请及时沟通。",
+			ContentHTML:   "",
+			ContentType:   "text/plain",
+			HasAttachment: false,
+			ReceivedAt:    now.Add(-36 * time.Hour),
+		},
+	}
+
+	// 生成摘要数据
+	p.MockSummaries = make([]*EmailSummary, len(p.MockEmails))
+	for i, email := range p.MockEmails {
+		p.MockSummaries[i] = &EmailSummary{
+			MessageID:     email.MessageID,
+			Subject:       email.Subject,
+			SenderName:    email.SenderName,
+			SenderEmail:   email.SenderEmail,
+			ReceivedAt:    email.ReceivedAt,
+			HasAttachment: email.HasAttachment,
+			Size:          1024,
+		}
 	}
 }
 

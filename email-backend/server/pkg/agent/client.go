@@ -45,7 +45,7 @@ type ClassifyRequest struct {
 type ClassifyResponse struct {
 	EmailID     string          `json:"email_id"`
 	Classification Classification `json:"classification"`
-	ProcessedAt time.Time       `json:"processed_at"`
+	ProcessedAt string          `json:"processed_at"`
 }
 
 // Classification 分类结果
@@ -69,7 +69,7 @@ type ExtractRequest struct {
 type ExtractResponse struct {
 	EmailID    string        `json:"email_id"`
 	Extraction ExtractionResult `json:"extraction"`
-	ProcessedAt time.Time    `json:"processed_at"`
+	ProcessedAt string       `json:"processed_at"`
 }
 
 // ExtractionResult 提取结果
@@ -104,6 +104,39 @@ type HealthResponse struct {
 	Version    string   `json:"version"`
 	LLMStatus  string   `json:"llm_status"`
 	Providers  []string `json:"providers"`
+}
+
+// SummaryRequest 摘要请求
+type SummaryRequest struct {
+	EmailIDs   []string                 `json:"email_ids"`
+	EmailsData []map[string]interface{} `json:"emails_data"`
+	Date       string                   `json:"date"`
+}
+
+// SummaryResponse 摘要响应
+type SummaryResponse struct {
+	Date           string                 `json:"date"`
+	TotalEmails    int                    `json:"total_emails"`
+	ByCategory     map[string]int         `json:"by_category"`
+	ImportantEmails []ImportantEmailAgent `json:"important_emails"`
+	ActionItems    []ActionItemAgent      `json:"action_items"`
+	SummaryText    string                 `json:"summary_text"`
+}
+
+// ImportantEmailAgent Agent返回的重要邮件
+type ImportantEmailAgent struct {
+	EmailID  string `json:"email_id"`
+	Subject  string `json:"subject"`
+	Sender   string `json:"sender"`
+	Category string `json:"category"`
+	Priority string `json:"priority"`
+	Summary  string `json:"summary"`
+}
+
+// ActionItemAgent Agent返回的行动项
+type ActionItemAgent struct {
+	Task     string `json:"task"`
+	Priority string `json:"priority"`
 }
 
 // Classify 调用Agent分类邮件
@@ -215,6 +248,48 @@ func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
 	}
 
 	var result HealthResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return &result, nil
+}
+
+// Summary 调用Agent生成摘要
+func (c *Client) Summary(ctx context.Context, req *SummaryRequest) (*SummaryResponse, error) {
+	url := c.baseURL + "/api/v1/summary/daily"
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("X-API-Key", c.apiKey)
+	}
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求Agent失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Agent返回错误: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	var result SummaryResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("解析响应失败: %w", err)
 	}

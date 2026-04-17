@@ -9,24 +9,34 @@ import (
 
 	"email-backend/server/global"
 	"email-backend/server/model"
+	"email-backend/server/pkg/agent"
 	"email-backend/server/pkg/email/provider"
 	"email-backend/server/repository"
 )
 
 // SyncService 同步服务
 type SyncService struct {
-	accountRepo *repository.AccountRepository
-	emailRepo   *repository.EmailRepository
+	accountRepo  *repository.AccountRepository
+	emailRepo    *repository.EmailRepository
+	agentClient  *agent.Client
+	autoClassify bool // 是否自动分类
 
 	// 并发控制
 	maxConcurrent int // 最大并发同步数
 }
 
 // NewSyncService 创建同步服务
-func NewSyncService(accountRepo *repository.AccountRepository, emailRepo *repository.EmailRepository) *SyncService {
+func NewSyncService(accountRepo *repository.AccountRepository, emailRepo *repository.EmailRepository, agentClient *agent.Client) *SyncService {
+	autoClassify := true
+	if global.Config() != nil {
+		autoClassify = global.Config().Email.AutoClassify
+	}
+
 	return &SyncService{
 		accountRepo:   accountRepo,
 		emailRepo:     emailRepo,
+		agentClient:   agentClient,
+		autoClassify:  autoClassify,
 		maxConcurrent: 3, // 默认最多3个账户并发同步
 	}
 }
@@ -38,14 +48,15 @@ type SyncRequest struct {
 
 // SyncResult 同步结果
 type SyncResult struct {
-	AccountID    int64     `json:"account_id"`
-	AccountEmail string    `json:"account_email"`
-	Success      bool      `json:"success"`
-	Message      string    `json:"message"`
-	TotalCount   int       `json:"total_count"`
-	SyncedCount  int       `json:"synced_count"`
-	ErrorCount   int       `json:"error_count"`
-	SyncedAt     time.Time `json:"synced_at"`
+	AccountID       int64     `json:"account_id"`
+	AccountEmail    string    `json:"account_email"`
+	Success         bool      `json:"success"`
+	Message         string    `json:"message"`
+	TotalCount      int       `json:"total_count"`
+	SyncedCount     int       `json:"synced_count"`
+	ErrorCount      int       `json:"error_count"`
+	ClassifiedCount int       `json:"classified_count"`
+	SyncedAt        time.Time `json:"synced_at"`
 }
 
 // SyncAll 并发同步所有账户
@@ -119,15 +130,21 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 
 	result.AccountEmail = account.AccountEmail
 
-	// 解密凭证
-	credential, err := global.Encryptor().Decrypt(
-		account.EncryptedCredential,
-		account.CredentialIV,
-	)
-	if err != nil {
-		result.Success = false
-		result.Message = fmt.Sprintf("解密凭证失败: %v", err)
-		return result
+	// 解密凭证（Mock Provider跳过解密）
+	var credential string
+	if account.Provider == "mock" {
+		credential = "mock-credential"
+	} else {
+		var err error
+		credential, err = global.Encryptor().Decrypt(
+			account.EncryptedCredential,
+			account.CredentialIV,
+		)
+		if err != nil {
+			result.Success = false
+			result.Message = fmt.Sprintf("解密凭证失败: %v", err)
+			return result
+		}
 	}
 
 	// 创建Provider
@@ -165,7 +182,8 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 	result.SyncedCount = syncResult.SyncedCount
 	result.ErrorCount = syncResult.ErrorCount
 
-	// 保存邮件到数据库
+	// 保存邮件到数据库 + 自动分类
+	var newEmailIDs []int64
 	for _, email := range syncResult.Emails {
 		emailModel := &model.Email{
 			MessageID:     email.MessageID,
@@ -191,7 +209,13 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 				result.ErrorCount++
 				continue
 			}
+			newEmailIDs = append(newEmailIDs, emailModel.ID)
 		}
+	}
+
+	// 自动分类新邮件
+	if s.autoClassify && s.agentClient != nil && len(newEmailIDs) > 0 {
+		result.ClassifiedCount = s.classifyNewEmails(ctx, newEmailIDs)
 	}
 
 	// 更新账户最后同步时间
@@ -231,4 +255,46 @@ func (s *SyncService) GetSyncStatus(ctx context.Context, userID int64) (map[stri
 	}
 
 	return status, nil
+}
+
+// classifyNewEmails 对新同步的邮件进行自动分类，返回成功分类数量
+func (s *SyncService) classifyNewEmails(ctx context.Context, emailIDs []int64) int {
+	classifiedCount := 0
+	for _, id := range emailIDs {
+		email, err := s.emailRepo.FindByID(ctx, id)
+		if err != nil {
+			continue
+		}
+
+		classifyReq := &agent.ClassifyRequest{
+			EmailID:     fmt.Sprintf("%d", email.ID),
+			Subject:     email.Subject,
+			SenderName:  email.SenderName,
+			SenderEmail: email.SenderEmail,
+			Content:     email.Content,
+			ReceivedAt:  email.ReceivedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		resp, err := s.agentClient.Classify(ctx, classifyReq)
+		if err != nil {
+			fmt.Printf("自动分类邮件 %d 失败: %v\n", id, err)
+			continue
+		}
+
+		email.Category = resp.Classification.Category
+		email.Priority = resp.Classification.Priority
+		email.Confidence = resp.Classification.Confidence
+		email.IsProcessed = true
+
+		if err := s.emailRepo.Update(ctx, email); err != nil {
+			fmt.Printf("更新邮件分类 %d 失败: %v\n", id, err)
+			continue
+		}
+		classifiedCount++
+	}
+
+	if classifiedCount > 0 {
+		fmt.Printf("自动分类完成: %d/%d 封邮件\n", classifiedCount, len(emailIDs))
+	}
+	return classifiedCount
 }
