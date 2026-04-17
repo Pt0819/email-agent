@@ -7,6 +7,7 @@ import (
 	emailRequest "email-backend/server/model/request"
 	respModel "email-backend/server/model/response"
 	"email-backend/server/pkg/agent"
+	"email-backend/server/repository"
 	"email-backend/server/service"
 
 	"github.com/gin-gonic/gin"
@@ -24,8 +25,8 @@ func NewEmailHandler(emailSvc *service.EmailService, agentClient *agent.Client) 
 }
 
 // SetupEmailRoutes 注册邮件路由
-func SetupEmailRoutes(r *gin.RouterGroup, agentClient *agent.Client) {
-	h := NewEmailHandler(service.NewEmailService(nil), agentClient)
+func SetupEmailRoutes(r *gin.RouterGroup, agentClient *agent.Client, emailRepo *repository.EmailRepository) {
+	h := NewEmailHandler(service.NewEmailService(emailRepo), agentClient)
 
 	emails := r.Group("/emails")
 	{
