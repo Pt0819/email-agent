@@ -33,6 +33,6 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 		v1.SetupAccountRoutes(v1Group)
 
 		// 同步路由
-		v1.SetupSyncRoutes(v1Group)
+		v1.SetupSyncRoutes(v1Group, agentClient)
 	}
 }
