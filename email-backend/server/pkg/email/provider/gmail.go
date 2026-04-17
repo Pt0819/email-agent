@@ -341,55 +341,13 @@ func (p *GmailProvider) FetchEmailDetail(ctx context.Context, messageID string) 
 	return email, nil
 }
 
-// parseGmailBody 解析邮件正文
+// parseGmailBody 解析邮件正文（支持嵌套multipart）
 func parseGmailBody(r io.Reader, email *Email) {
 	msgReader, err := message.Read(r)
 	if err != nil {
 		return
 	}
-
-	if mr := msgReader.MultipartReader(); mr != nil {
-		for {
-			part, err := mr.NextPart()
-			if err != nil {
-				break
-			}
-
-			contentType, _, _ := part.Header.ContentType()
-
-			if strings.HasPrefix(contentType, "text/plain") {
-				data, err := io.ReadAll(part.Body)
-				if err == nil {
-					email.Content = string(data)
-					email.ContentType = "text/plain"
-				}
-			} else if strings.HasPrefix(contentType, "text/html") {
-				data, err := io.ReadAll(part.Body)
-				if err == nil {
-					email.ContentHTML = string(data)
-					if email.ContentType == "" {
-						email.ContentType = "text/html"
-					}
-				}
-			}
-
-			if disp, _, _ := part.Header.ContentDisposition(); disp == "attachment" {
-				email.HasAttachment = true
-			}
-		}
-	} else {
-		contentType, _, _ := msgReader.Header.ContentType()
-		data, err := io.ReadAll(msgReader.Body)
-		if err == nil {
-			if strings.HasPrefix(contentType, "text/plain") {
-				email.Content = string(data)
-				email.ContentType = "text/plain"
-			} else if strings.HasPrefix(contentType, "text/html") {
-				email.ContentHTML = string(data)
-				email.ContentType = "text/html"
-			}
-		}
-	}
+	parseMessagePart(msgReader, email)
 }
 
 // FetchEmails 批量获取邮件

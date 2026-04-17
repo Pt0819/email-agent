@@ -271,7 +271,7 @@ func (p *Net126Provider) parseEnvelope(msg *imap.Message) *EmailSummary {
 
 	if len(msg.Envelope.From) > 0 {
 		from := msg.Envelope.From[0]
-		summary.SenderName = from.PersonalName
+		summary.SenderName = sanitizeString(from.PersonalName)
 		summary.SenderEmail = from.Address()
 	}
 
@@ -367,7 +367,7 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 
 	if len(msg.Envelope.From) > 0 {
 		from := msg.Envelope.From[0]
-		email.SenderName = from.PersonalName
+		email.SenderName = sanitizeString(from.PersonalName)
 		email.SenderEmail = from.Address()
 	}
 
@@ -389,57 +389,79 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 	return email, nil
 }
 
-// parseBody 解析邮件正文
+// parseBody 解析邮件正文（支持嵌套multipart）
 func parseBody(r io.Reader, email *Email) {
 	msgReader, err := message.Read(r)
 	if err != nil {
 		return
 	}
+	parseMessagePart(msgReader, email)
+}
 
-	if mr := msgReader.MultipartReader(); mr != nil {
+// parseMessagePart 递归解析邮件部分
+func parseMessagePart(entity *message.Entity, email *Email) {
+	// 如果是multipart，递归处理每个子部分
+	if mr := entity.MultipartReader(); mr != nil {
 		for {
 			part, err := mr.NextPart()
 			if err != nil {
 				break
 			}
-
-			contentType, _, _ := part.Header.ContentType()
-
-			if strings.HasPrefix(contentType, "text/plain") {
-				data, err := io.ReadAll(part.Body)
-				if err == nil {
-					email.Content = string(data)
-					email.ContentType = "text/plain"
-				}
-			} else if strings.HasPrefix(contentType, "text/html") {
-				data, err := io.ReadAll(part.Body)
-				if err == nil {
-					email.ContentHTML = string(data)
-					if email.ContentType == "" {
-						email.ContentType = "text/html"
-					}
-				}
-			}
-
-			// 检查附件标记
-			if disp, _, _ := part.Header.ContentDisposition(); disp == "attachment" {
-				email.HasAttachment = true
-			}
+			parseMessagePart(part, email)
 		}
-	} else {
-		// 单部分消息
-		contentType, _, _ := msgReader.Header.ContentType()
-		data, err := io.ReadAll(msgReader.Body)
-		if err == nil {
-			if strings.HasPrefix(contentType, "text/plain") {
-				email.Content = string(data)
-				email.ContentType = "text/plain"
-			} else if strings.HasPrefix(contentType, "text/html") {
-				email.ContentHTML = string(data)
-				email.ContentType = "text/html"
-			}
+		return
+	}
+
+	// 非multipart，读取正文
+	contentType, params, _ := entity.Header.ContentType()
+	charset := params["charset"]
+
+	if !strings.HasPrefix(contentType, "text/") {
+		return
+	}
+
+	data, err := io.ReadAll(entity.Body)
+	if err != nil {
+		return
+	}
+
+	// 如果指定了charset且不是UTF-8，尝试转换
+	body := string(data)
+	if charset != "" && !strings.EqualFold(charset, "utf-8") && !strings.EqualFold(charset, "us-ascii") {
+		if decoded, err := decodeCharset(data, charset); err == nil {
+			body = decoded
 		}
 	}
+
+	// 清理无效字符
+	body = sanitizeString(body)
+
+	if strings.HasPrefix(contentType, "text/plain") && email.Content == "" {
+		email.Content = body
+		email.ContentType = "text/plain"
+	} else if strings.HasPrefix(contentType, "text/html") && email.ContentHTML == "" {
+		email.ContentHTML = body
+		if email.ContentType == "" {
+			email.ContentType = "text/html"
+		}
+	}
+
+	// 检查附件标记
+	if disp, _, _ := entity.Header.ContentDisposition(); disp == "attachment" {
+		email.HasAttachment = true
+	}
+}
+
+// decodeCharset 将字节从指定字符集解码为UTF-8字符串
+func decodeCharset(data []byte, charset string) (string, error) {
+	// go-message/charset 已注册常见字符集解码器
+	// 使用mime包的WordDecoder处理
+	decoder := new(mime.WordDecoder)
+	decoded, err := decoder.DecodeHeader(string(data))
+	if err != nil {
+		return string(data), err
+	}
+	return decoded, nil
 }
 
 // FetchEmails 批量获取邮件
@@ -509,9 +531,24 @@ func decodeSubject(subject string) string {
 	dec := new(mime.WordDecoder)
 	decoded, err := dec.DecodeHeader(subject)
 	if err != nil {
-		return subject
+		return sanitizeString(subject)
 	}
-	return decoded
+	return sanitizeString(decoded)
+}
+
+// sanitizeString 清理字符串中的无效Unicode字符（如surrogate字符）
+func sanitizeString(s string) string {
+	// 移除surrogate字符（U+D800 到 U+DFFF）
+	var result strings.Builder
+	result.Grow(len(s))
+	for _, r := range s {
+		if r >= 0xD800 && r <= 0xDFFF {
+			// 跳过surrogate字符
+			continue
+		}
+		result.WriteRune(r)
+	}
+	return result.String()
 }
 
 func init() {

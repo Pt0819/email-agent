@@ -33,16 +33,36 @@ func (r *EmailRepository) FindByID(ctx context.Context, id int64) (*model.Email,
 	return &email, nil
 }
 
-// FindByMessageID 根据MessageID查询
+// FindByMessageID 根据MessageID查询（包含软删除记录）
 func (r *EmailRepository) FindByMessageID(ctx context.Context, messageID string) (*model.Email, error) {
 	var email model.Email
 	err := r.db.WithContext(ctx).
+		Unscoped(). // 包含软删除记录，避免唯一索引冲突
 		Where("message_id = ?", messageID).
 		First(&email).Error
 	if err != nil {
 		return nil, err
 	}
 	return &email, nil
+}
+
+// Restore 恢复软删除的邮件并更新内容
+func (r *EmailRepository) Restore(ctx context.Context, id int64, email *model.Email) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Email{}).
+		Unscoped().
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"deleted_at":    nil,
+			"sender_name":   email.SenderName,
+			"sender_email":  email.SenderEmail,
+			"subject":       email.Subject,
+			"content":       email.Content,
+			"content_html":  email.ContentHTML,
+			"content_type":  email.ContentType,
+			"has_attachment": email.HasAttachment,
+			"received_at":   email.ReceivedAt,
+		}).Error
 }
 
 // List 分页查询

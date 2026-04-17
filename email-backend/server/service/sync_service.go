@@ -202,15 +202,24 @@ func (s *SyncService) SyncAccount(ctx context.Context, accountID int64) *SyncRes
 			Status:        "unread",
 		}
 
-		// 检查是否已存在（使用MessageID去重）
+		// 检查是否已存在（使用MessageID去重，包含软删除记录）
 		existing, _ := s.emailRepo.FindByMessageID(ctx, email.MessageID)
 		if existing == nil {
+			// 新邮件，创建
 			if err := s.emailRepo.Create(ctx, emailModel); err != nil {
 				result.ErrorCount++
 				continue
 			}
 			newEmailIDs = append(newEmailIDs, emailModel.ID)
+		} else if existing.DeletedAt.Valid {
+			// 软删除的邮件，恢复
+			if err := s.emailRepo.Restore(ctx, existing.ID, emailModel); err != nil {
+				result.ErrorCount++
+				continue
+			}
+			newEmailIDs = append(newEmailIDs, existing.ID)
 		}
+		// 已存在的正常邮件，跳过
 	}
 
 	// 自动分类新邮件
