@@ -1,13 +1,16 @@
 import { FILTERS } from '../../api/types';
-import type { EmailCategory, EmailStatus } from '../../api/types';
+import type { EmailCategory, EmailStatus, EmailAccount } from '../../api/types';
 import { Search, Filter } from 'lucide-react';
 
 interface FilterBarProps {
   selectedCategory: EmailCategory | 'all';
   selectedStatus: EmailStatus | 'all';
+  selectedAccount: number | 'all';
   keyword: string;
+  accounts: EmailAccount[];
   onCategoryChange: (category: EmailCategory | 'all') => void;
   onStatusChange: (status: EmailStatus | 'all') => void;
+  onAccountChange: (accountId: number | 'all') => void;
   onKeywordChange: (keyword: string) => void;
   onSync?: () => void;
   syncStatus?: 'idle' | 'syncing' | 'error';
@@ -16,9 +19,12 @@ interface FilterBarProps {
 export default function FilterBar({
   selectedCategory,
   selectedStatus,
+  selectedAccount,
   keyword,
+  accounts,
   onCategoryChange,
   onStatusChange,
+  onAccountChange,
   onKeywordChange,
   onSync,
   syncStatus,
@@ -56,11 +62,30 @@ export default function FilterBar({
       </div>
 
       {/* 底部：筛选器 */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 flex-wrap">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-sm text-gray-700 font-medium">筛选:</span>
         </div>
+
+        {/* 账户筛选 */}
+        {accounts.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">账户:</span>
+            <select
+              value={selectedAccount}
+              onChange={(e) => onAccountChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="all">全部账户</option>
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.email || acc.account_email}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* 分类筛选 */}
         <div className="flex items-center gap-2">

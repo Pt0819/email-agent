@@ -17,7 +17,27 @@
       "Bash(go build:*)",
       "Bash(go get:*)",
       "Bash(go mod:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(export ZHIPU_API_KEY=\"3a5a94ab9dc04ce5aef9fa8bec6dcde4.YKytekiKaeDd2xNY\")",
+      "Bash(go run:*)",
+      "Bash(awk '{print $5}')",
+      "Bash(xargs -I{} taskkill.exe //F //PID {})",
+      "Bash(curl -s \"http://localhost:8080/api/v1/emails?limit=3\")",
+      "Bash(./main.exe)",
+      "Bash(curl -s \"http://localhost:8080/api/v1/emails?page=1&page_size=10\")",
+      "Bash(curl -s \"http://localhost:8080/api/v1/emails?page=1&page_size=50\")",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s http://localhost:8080/health)",
+      "Bash(curl -s http://localhost:8001/api/v1/health)",
+      "Bash(curl -s -X POST http://localhost:8080/api/v1/sync -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s \"http://localhost:8080/api/v1/emails?page=1&page_size=5\")",
+      "Bash(curl -s -X PUT \"http://localhost:8080/api/v1/emails/9/status\" -H \"Content-Type: application/json\" -d '{\"status\":\"read\"}')",
+      "Bash(curl -s -X PUT \"http://localhost:8080/api/v1/emails/10/status\" -H \"Content-Type: application/json\" -d '{\"status\":\"archived\"}')",
+      "Bash(npm run:*)",
+      "Bash(curl -s \"http://localhost:8080/api/v1/accounts\")",
+      "Bash(curl -s \"http://localhost:8080/api/v1/emails?account_id=3&page_size=3\")",
+      "Bash(taskkill //F //IM main.exe)",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   }
 }

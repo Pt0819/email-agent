@@ -13,6 +13,7 @@ import (
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
+	"github.com/emersion/go-imap-id"
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset" // 注册字符集解码器
 )
@@ -147,14 +148,14 @@ func (p *Net126Provider) connectOnce() error {
 
 // sendIDCommand 发送IMAP ID命令标识客户端
 // 126邮箱要求发送ID命令，否则SELECT会被标记为"Unsafe Login"
+// 使用 go-imap-id 库的标准实现
 func (p *Net126Provider) sendIDCommand() error {
-	cmd := &imap.Command{
-		Name: "ID",
-		Arguments: []interface{}{
-			imap.RawString(`("name" "Foxmail" "version" "7.2" "vendor" "Tencent")`),
-		},
-	}
-	_, err := p.client.Execute(cmd, nil)
+	idClient := id.NewClient(p.client)
+	_, err := idClient.ID(id.ID{
+		"name":    "Foxmail",
+		"version": "7.2",
+		"vendor":  "Tencent",
+	})
 	return err
 }
 
@@ -188,12 +189,14 @@ func (p *Net126Provider) FetchEmailList(ctx context.Context, since time.Time, li
 
 	// 126邮箱要求：每次SELECT前发送ID命令
 	// 避免被标记为"Unsafe Login"
-	p.sendIDCommand()
+	if err := p.sendIDCommand(); err != nil {
+		return nil, fmt.Errorf("发送客户端标识失败: %w", err)
+	}
 
-	// 126邮箱安全策略可能阻止SELECT，先尝试SELECT再尝试EXAMINE
+	// 选择收件箱
 	mailbox, err := p.client.Select("INBOX", true) // true = readonly
 	if err != nil {
-		// SELECT失败时尝试只读方式
+		// SELECT失败时尝试非只读方式
 		mailbox, err = p.client.Select("INBOX", false)
 		if err != nil {
 			return nil, fmt.Errorf("选择收件箱失败: %w", err)
@@ -313,6 +316,11 @@ func (p *Net126Provider) FetchEmailDetail(ctx context.Context, messageID string)
 
 	if p.client == nil {
 		return nil, fmt.Errorf("未连接")
+	}
+
+	// 126邮箱要求：每次SELECT前发送ID命令
+	if err := p.sendIDCommand(); err != nil {
+		return nil, fmt.Errorf("发送客户端标识失败: %w", err)
 	}
 
 	// 选择收件箱

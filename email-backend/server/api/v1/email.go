@@ -33,6 +33,7 @@ func SetupEmailRoutes(r *gin.RouterGroup, agentClient *agent.Client, emailRepo *
 		emails.GET("", h.ListEmails)
 		emails.GET("/:id", h.GetEmail)
 		emails.POST("/:id/classify", h.ClassifyEmail)
+		emails.PUT("/:id/status", h.UpdateStatus)
 		emails.DELETE("/:id", h.DeleteEmail)
 	}
 }
@@ -50,6 +51,7 @@ func HealthCheck(c *gin.Context) {
 func (h *EmailHandler) ListEmails(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	accountID, _ := strconv.ParseInt(c.Query("account_id"), 10, 64)
 
 	if page < 1 {
 		page = 1
@@ -59,10 +61,12 @@ func (h *EmailHandler) ListEmails(c *gin.Context) {
 	}
 
 	req := &emailRequest.ListRequest{
-		Page:     page,
-		PageSize: pageSize,
-		Category: c.Query("category"),
-		Status:   c.Query("status"),
+		Page:      page,
+		PageSize:  pageSize,
+		AccountID: accountID,
+		Category:  c.Query("category"),
+		Status:    c.Query("status"),
+		Keyword:   c.Query("keyword"),
 	}
 
 	emails, total, err := h.emailService.List(c.Request.Context(), req)
@@ -138,7 +142,7 @@ func (h *EmailHandler) ClassifyEmail(c *gin.Context) {
 	}
 
 	// 更新邮件分类
-	if err := h.emailService.ClassifyEmail(c.Request.Context(), id, result.Category, result.Priority, result.Confidence); err != nil {
+	if err := h.emailService.ClassifyEmail(c.Request.Context(), id, result.Category, result.Priority, result.Confidence, result.Reasoning); err != nil {
 		errorResp(c, 500, "更新分类失败")
 		return
 	}
@@ -161,4 +165,46 @@ func (h *EmailHandler) DeleteEmail(c *gin.Context) {
 	}
 
 	success(c, nil)
+}
+
+// UpdateStatus 更新邮件状态（标记已读、归档等）
+func (h *EmailHandler) UpdateStatus(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		badRequest(c, "无效的邮件ID")
+		return
+	}
+
+	var req struct {
+		Status string `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "缺少status参数")
+		return
+	}
+
+	// 验证status合法性
+	validStatuses := map[string]bool{"read": true, "unread": true, "archived": true}
+	if !validStatuses[req.Status] {
+		badRequest(c, "无效的状态值，允许: read, unread, archived")
+		return
+	}
+
+	switch req.Status {
+	case "read":
+		err = h.emailService.MarkAsRead(c.Request.Context(), id)
+	case "archived":
+		err = h.emailService.ArchiveEmail(c.Request.Context(), id)
+	default:
+		// 其他状态直接更新
+		err = h.emailService.UpdateStatus(c.Request.Context(), id, req.Status)
+	}
+
+	if err != nil {
+		errorResp(c, 500, "更新状态失败")
+		return
+	}
+
+	success(c, gin.H{"id": id, "status": req.Status})
 }
