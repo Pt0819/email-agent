@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"email-backend/server/global"
 	"email-backend/server/model"
@@ -58,7 +59,7 @@ func (s *EmailService) Delete(ctx context.Context, id int64) error {
 }
 
 // ClassifyEmail 分类邮件
-func (s *EmailService) ClassifyEmail(ctx context.Context, id int64, category, priority string, confidence float64) error {
+func (s *EmailService) ClassifyEmail(ctx context.Context, id int64, category, priority string, confidence float64, reasoning string) error {
 	email, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -67,8 +68,45 @@ func (s *EmailService) ClassifyEmail(ctx context.Context, id int64, category, pr
 	email.Category = category
 	email.Priority = priority
 	email.Confidence = confidence
+	email.Reasoning = reasoning
 	email.IsProcessed = true
 
+	now := time.Now()
+	email.ProcessedAt = &now
+
+	return s.repo.Update(ctx, email)
+}
+
+// MarkAsRead 标记邮件为已读
+func (s *EmailService) MarkAsRead(ctx context.Context, id int64) error {
+	email, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	email.Status = "read"
+	return s.repo.Update(ctx, email)
+}
+
+// ArchiveEmail 归档邮件
+func (s *EmailService) ArchiveEmail(ctx context.Context, id int64) error {
+	email, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	email.Status = "archived"
+	return s.repo.Update(ctx, email)
+}
+
+// UpdateStatus 更新邮件状态
+func (s *EmailService) UpdateStatus(ctx context.Context, id int64, status string) error {
+	email, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	email.Status = status
 	return s.repo.Update(ctx, email)
 }
 

@@ -76,6 +76,9 @@ func (r *EmailRepository) List(ctx context.Context, req *emailRequest.ListReques
 	if req.UserID > 0 {
 		query = query.Where("user_id = ?", req.UserID)
 	}
+	if req.AccountID > 0 {
+		query = query.Where("account_id = ?", req.AccountID)
+	}
 	if req.Category != "" {
 		query = query.Where("category = ?", req.Category)
 	}

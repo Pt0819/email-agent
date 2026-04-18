@@ -293,7 +293,10 @@ func (s *SyncService) classifyNewEmails(ctx context.Context, emailIDs []int64) i
 		email.Category = resp.Classification.Category
 		email.Priority = resp.Classification.Priority
 		email.Confidence = resp.Classification.Confidence
+		email.Reasoning = resp.Classification.Reasoning
 		email.IsProcessed = true
+		now := time.Now()
+		email.ProcessedAt = &now
 
 		if err := s.emailRepo.Update(ctx, email); err != nil {
 			fmt.Printf("更新邮件分类 %d 失败: %v\n", id, err)

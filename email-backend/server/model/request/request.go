@@ -3,12 +3,13 @@ package model
 
 // ListRequest 列表请求
 type ListRequest struct {
-	Page     int    `form:"page" json:"page"`
-	PageSize int    `form:"page_size" json:"page_size"`
-	UserID   int64  `form:"-" json:"-"`
-	Category string `form:"category" json:"category"`
-	Status   string `form:"status" json:"status"`
-	Keyword  string `form:"keyword" json:"keyword"`
+	Page      int    `form:"page" json:"page"`
+	PageSize  int    `form:"page_size" json:"page_size"`
+	UserID    int64  `form:"-" json:"-"`
+	AccountID int64  `form:"account_id" json:"account_id"`
+	Category  string `form:"category" json:"category"`
+	Status    string `form:"status" json:"status"`
+	Keyword   string `form:"keyword" json:"keyword"`
 }
 
 // CreateAccountRequest 创建账户请求

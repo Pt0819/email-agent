@@ -1,25 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { emailApi, syncApi } from '../api/client';
-import type { Email, EmailCategory, EmailStatus } from '../api/types';
+import { emailApi, syncApi, accountApi } from '../api/client';
+import type { Email, EmailCategory, EmailStatus, EmailAccount } from '../api/types';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import EmailCard from '../components/email/EmailCard';
 import FilterBar from '../components/email/FilterBar';
 import Pagination from '../components/ui/Pagination';
-
-interface EmailListParams {
-  page?: number;
-  page_size?: number;
-  category?: EmailCategory | 'all';
-  status?: EmailStatus | 'all';
-  keyword?: string;
-}
 
 export default function EmailList() {
   const navigate = useNavigate();
 
   // 状态管理
   const [emails, setEmails] = useState<Email[]>([]);
+  const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
@@ -29,19 +22,41 @@ export default function EmailList() {
   const pageSize = 20;
   const [selectedCategory, setSelectedCategory] = useState<EmailCategory | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<EmailStatus | 'all'>('all');
+  const [selectedAccount, setSelectedAccount] = useState<number | 'all'>('all');
   const [keyword, setKeyword] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+
+  // 获取账户列表
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const response = await accountApi.list();
+      const data = response as unknown as { list: EmailAccount[] };
+      setAccounts(data.list || []);
+    } catch (err) {
+      console.error('获取账户列表失败:', err);
+    }
+  }, []);
 
   // 获取邮件列表
   const fetchEmails = useCallback(async () => {
     try {
       setLoading(true);
-      const params: EmailListParams = {
+      const params: {
+        page: number;
+        page_size: number;
+        account_id?: number;
+        category?: EmailCategory;
+        status?: EmailStatus;
+        keyword?: string;
+      } = {
         page,
         page_size: pageSize,
         keyword: keyword || undefined,
       };
 
+      if (selectedAccount !== 'all') {
+        params.account_id = selectedAccount;
+      }
       if (selectedCategory !== 'all') {
         params.category = selectedCategory as EmailCategory;
       }
@@ -59,9 +74,13 @@ export default function EmailList() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, selectedCategory, selectedStatus, keyword]);
+  }, [page, pageSize, selectedCategory, selectedStatus, selectedAccount, keyword]);
 
   // 初始加载
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
   useEffect(() => {
     fetchEmails();
   }, [fetchEmails]);
@@ -110,6 +129,12 @@ export default function EmailList() {
     setPage(1);
   };
 
+  // 处理账户变化
+  const handleAccountChange = (accountId: number | 'all') => {
+    setSelectedAccount(accountId);
+    setPage(1);
+  };
+
   // 处理关键词搜索
   const handleKeywordChange = (kw: string) => {
     setKeyword(kw);
@@ -131,9 +156,12 @@ export default function EmailList() {
       <FilterBar
         selectedCategory={selectedCategory}
         selectedStatus={selectedStatus}
+        selectedAccount={selectedAccount}
         keyword={keyword}
+        accounts={accounts}
         onCategoryChange={handleCategoryChange}
         onStatusChange={handleStatusChange}
+        onAccountChange={handleAccountChange}
         onKeywordChange={handleKeywordChange}
         onSync={handleSync}
         syncStatus={syncStatus}
@@ -168,7 +196,7 @@ export default function EmailList() {
           </div>
           <p className="text-gray-500 mb-1">暂无邮件</p>
           <p className="text-sm text-gray-400">
-            {keyword || selectedCategory !== 'all' || selectedStatus !== 'all'
+            {keyword || selectedCategory !== 'all' || selectedStatus !== 'all' || selectedAccount !== 'all'
               ? '尝试调整筛选条件'
               : '请先添加邮箱账户并同步邮件'}
           </p>

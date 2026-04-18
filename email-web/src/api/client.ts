@@ -55,6 +55,10 @@ export const emailApi = {
   /** 分类邮件 */
   classify: (id: string) =>
     apiClient.post<ApiResponse<ClassifyResponse>>(`/emails/${id}/classify`),
+
+  /** 更新邮件状态 */
+  updateStatus: (id: string, status: string) =>
+    apiClient.put<ApiResponse<{ id: string; status: string }>>(`/emails/${id}/status`, { status }),
 };
 
 // ==================== 账户API ====================

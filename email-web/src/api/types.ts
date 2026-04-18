@@ -40,6 +40,8 @@ export interface Email {
   content_html?: string;
   category: EmailCategory;
   priority: EmailPriority;
+  confidence: number;
+  reasoning?: string;
   status: EmailStatus;
   has_attachment: boolean;
   received_at: string;
@@ -49,6 +51,7 @@ export interface Email {
 export interface EmailListParams {
   page?: number;
   page_size?: number;
+  account_id?: number;
   category?: EmailCategory | 'all';
   status?: EmailStatus | 'all';
   keyword?: string;
@@ -62,7 +65,8 @@ export interface EmailAccount {
   id: number;
   user_id: number;
   provider: EmailProvider;
-  account_email: string;
+  email: string; // API返回的是email字段
+  account_email?: string; // 兼容旧字段
   last_sync_at?: string;
   sync_enabled: boolean;
   created_at: string;
