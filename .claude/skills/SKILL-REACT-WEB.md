@@ -270,5 +270,189 @@ export default function PageName() {
 
 ---
 
+## 10. API客户端规范
+
+### Axios封装模式
+```typescript
+// api/client.ts
+const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
+  headers,
+});
+
+// 请求拦截器 - 自动添加Token
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// 响应拦截器 - 自动解包
+apiClient.interceptors.response.use(
+  (response) => response.data,  // 直接返回data层
+  (error: AxiosError<ApiResponse>) => {
+    const message = error.response?.data?.message || error.message;
+    return Promise.reject(new Error(message));
+  }
+);
+```
+
+### API模块化组织
+```typescript
+// api/client.ts - 按资源分组
+export const emailApi = {
+  list: (params?: EmailListParams) =>
+    apiClient.get<ApiResponse<PageData<Email>>>('/emails', { params }),
+  getById: (id: string) =>
+    apiClient.get<ApiResponse<Email>>(`/emails/${id}`),
+  classify: (id: string) =>
+    apiClient.post<ApiResponse<ClassifyResponse>>(`/emails/${id}/classify`),
+};
+
+export const accountApi = {
+  list: () => apiClient.get<ApiResponse<{ list: EmailAccount[] }>>('/accounts'),
+  create: (data: CreateAccountRequest) =>
+    apiClient.post<ApiResponse<EmailAccount>>('/accounts', data),
+  delete: (id: number) => apiClient.delete(`/accounts/${id}`),
+  test: (id: number) =>
+    apiClient.post(`/accounts/${id}/test`),
+};
+
+export const syncApi = {
+  trigger: (accountId?: number) =>
+    apiClient.post('/sync', { account_id: accountId }),
+  status: () => apiClient.get('/sync/status'),
+};
+```
+
+### 类型定义规范
+```typescript
+// api/types.ts
+
+// 1. 通用类型
+export interface ApiResponse<T = unknown> {
+  code: number;
+  message: string;
+  data?: T;
+}
+
+export interface PageData<T = unknown> {
+  list: T[];
+  total: number;
+}
+
+// 2. 枚举类型使用 union type
+export type EmailCategory = 'work_urgent' | 'work_normal' | 'personal' | 'spam';
+export type EmailPriority = 'critical' | 'high' | 'medium' | 'low';
+
+// 3. 显示映射用 Record
+export const CATEGORY_LABELS: Record<EmailCategory, string> = {
+  work_urgent: '紧急工作',
+  work_normal: '普通工作',
+  ...
+};
+
+export const CATEGORY_COLORS: Record<EmailCategory, string> = {
+  work_urgent: 'bg-red-100 text-red-800 border-red-200',
+  work_normal: 'bg-blue-100 text-blue-800 border-blue-200',
+  ...
+};
+```
+
+## 11. 页面组件模式
+
+### 列表页模式（带筛选/分页）
+```typescript
+export default function EmailList() {
+  // 状态管理
+  const [items, setItems] = useState<Email[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+
+  // 筛选/分页状态
+  const [page, setPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<EmailCategory | 'all'>('all');
+
+  // 数据获取（useCallback + useEffect模式）
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await emailApi.list({ page, category, keyword });
+      const pageData = response as unknown as { list: Email[]; total: number };
+      setItems(pageData.list || []);
+      setTotal(pageData.total || 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取数据失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, selectedCategory]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // 筛选变化重置分页
+  const handleCategoryChange = (category: EmailCategory | 'all') => {
+    setSelectedCategory(category);
+    setPage(1);  // 重置到第一页
+  };
+}
+```
+
+### 表单页面模式（含提交/取消）
+```typescript
+export default function SettingsPage() {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ email: '', provider: '126', credential: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      await accountApi.create(formData);
+      setFormData({ email: '', provider: '126', credential: '' });  // 重置
+      setShowForm(false);
+      fetchAccounts();  // 刷新列表
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+}
+```
+
+### Loading / Empty / Error 三态处理
+```tsx
+// Loading态
+{loading && items.length === 0 && (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+  </div>
+)}
+
+// 空状态
+{items.length === 0 && !loading && (
+  <div className="text-center py-12">
+    <p className="text-gray-500">暂无数据</p>
+  </div>
+)}
+
+// 错误提示
+{error && (
+  <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+    <AlertCircle className="w-5 h-5 mr-2" />
+    <span>{error}</span>
+  </div>
+)}
+```
+
+---
+
 > 生成时间: 2026-04-08
+> 更新: 2026-04-14 (添加API客户端规范和页面组件模式)
 > 适用于: React前端开发

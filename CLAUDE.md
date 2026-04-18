@@ -14,9 +14,9 @@ mail-agent/
 ├── email-agent/       # Python Agent (AI分类 + 提取)
 ├── email-web/         # React前端 (用户界面)
 ├── docs/              # 项目文档
-│   ├── skills/       # 开发Skills (可复用规范)
 │   ├── DESIGN.md     # 设计文档
 │   └── REQUIREMENTS.md # 需求文档
+├── .claude/skills/    # 开发Skills (AI专用规范)
 └── sql/               # 数据库脚本
 ```
 
@@ -31,7 +31,7 @@ mail-agent/
 
 ## 开发规范
 
-开发时请参考 `docs/skills/` 目录下的规范：
+开发时请参考 `.claude/skills/` 目录下的规范：
 
 - **SKILL-GO-BACKEND.md** - Go后端开发规范
 - **SKILL-PYTHON-AGENT.md** - Python Agent开发规范

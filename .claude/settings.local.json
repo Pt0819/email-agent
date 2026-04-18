@@ -37,7 +37,11 @@
       "Bash(curl -s \"http://localhost:8080/api/v1/accounts\")",
       "Bash(curl -s \"http://localhost:8080/api/v1/emails?account_id=3&page_size=3\")",
       "Bash(taskkill //F //IM main.exe)",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(curl -s http://localhost:8080/api/v1/health)",
+      "Bash(curl -s http://localhost:8080/api/v1/emails?page=1\\\\&page_size=5)",
+      "Bash(curl:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total:', d['data']['total'], '| Count:', len\\(d['data']['list']\\)\\); [print\\(f\\\\\"  ID:{e['id']} account:{e['account_id']} from:{e['sender_email']}\\\\\"\\) for e in d['data']['list']]\")"
     ]
   }
 }

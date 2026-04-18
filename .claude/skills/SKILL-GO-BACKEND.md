@@ -22,7 +22,7 @@ email-backend/
 │   │   └── config.go
 │   │
 │   ├── core/                    # 核心初始化
-│   │   └── core.go              # InitConfig, InitDB, Close, InitEncryptor, InitProviders
+│   │   └── core.go              # InitConfig, InitDB, Close
 │   │
 │   ├── global/                  # 全局对象
 │   │   └── global.go
@@ -37,15 +37,6 @@ email-backend/
 │   │   └── response/           # 响应DTO
 │   │       └── response.go
 │   │
-│   ├── pkg/                     # 公共包
-│   │   ├── crypto/              # 加密工具
-│   │   │   └── credential.go    # AES-256-GCM凭证加密
-│   │   └── email/
-│   │       └── provider/        # 邮件Provider接口
-│   │           ├── provider.go  # Provider接口定义
-│   │           ├── mock.go      # Mock实现(测试用)
-│   │           └── net126.go    # 126邮箱实现
-│   │
 │   ├── repository/              # 数据访问层
 │   │   └── repository.go
 │   │
@@ -53,14 +44,13 @@ email-backend/
 │   │   └── router.go
 │   │
 │   └── service/                # 业务逻辑层
-│       ├── service.go          # 基础服务
-│       └── sync_service.go     # 同步服务
+│       └── service.go
 │
 ├── config/                      # 配置文件
 │   └── config.yaml
 │
 ├── sql/                         # 数据库脚本
-│   └── init.sql
+│   └── *.sql
 │
 ├── go.mod
 ├── go.sum
@@ -119,7 +109,6 @@ go get github.com/spf13/viper
 go get gorm.io/gorm
 go get gorm.io/driver/mysql
 go get github.com/redis/go-redis/v9
-go get github.com/emersion/go-imap
 ```
 
 ### 配置文件格式 (YAML)
@@ -134,16 +123,13 @@ database:
   username: root
   password: ${DB_PASSWORD}  # 从环境变量读取
   dbname: email_system
-
-security:
-  credential_key: ${CREDENTIAL_KEY}  # 32字节密钥用于凭证加密
 ```
 
 ### 环境变量使用
 ```go
 // 从环境变量读取敏感信息
 os.Getenv("DB_PASSWORD")
-os.Getenv("CREDENTIAL_KEY")  // 32字节密钥
+os.Getenv("CREDENTIAL_KEY")
 ```
 
 ## 5. API响应规范
@@ -217,92 +203,13 @@ type ListRequest struct {
 }
 
 type CreateAccountRequest struct {
-    Provider   string `json:"provider" binding:"required"`
-    Email      string `json:"email" binding:"required,email"`
-    Credential string `json:"credential" binding:"required"`  # 授权码
+    Provider string `json:"provider" binding:"required"`
+    Email    string `json:"email" binding:"required,email"`
+    Password string `json:"password"`
 }
 ```
 
-## 7. Provider插件架构
-
-### 实现新的邮件Provider
-
-```go
-// 1. 在 server/pkg/email/provider/ 下创建新文件
-// 例如: outlook.go
-
-package provider
-
-type OutlookProvider struct {
-    // 配置
-}
-
-func NewOutlookProvider(config *ProviderConfig) EmailProvider {
-    return &OutlookProvider{...}
-}
-
-func (p *OutlookProvider) Name() string { return "outlook" }
-func (p *OutlookProvider) Connect(ctx context.Context, email, credential string) error { ... }
-func (p *OutlookProvider) TestConnection(ctx context.Context) (*ConnectionResult, error) { ... }
-func (p *OutlookProvider) FetchEmailList(ctx context.Context, since time.Time, limit int) ([]*EmailSummary, error) { ... }
-func (p *OutlookProvider) FetchEmailDetail(ctx context.Context, messageID string) (*Email, error) { ... }
-func (p *OutlookProvider) FetchEmails(ctx context.Context, since time.Time, limit int) (*SyncResult, error) { ... }
-func (p *OutlookProvider) Disconnect() error { ... }
-func (p *OutlookProvider) IsConnected() bool { ... }
-
-func init() {
-    Register("outlook", NewOutlookProvider)  // 注册到工厂
-}
-```
-
-### 使用Provider
-```go
-// 创建Provider
-provider, ok := provider.Create("126", &provider.ProviderConfig{
-    Server: "imap.126.com",
-    Port:   993,
-    UseSSL: true,
-})
-if !ok {
-    return errors.New("不支持的邮件提供商")
-}
-
-// 连接
-err := provider.Connect(ctx, email, credential)
-
-// 获取邮件
-result, err := provider.FetchEmails(ctx, since, limit)
-```
-
-## 8. 凭证加密使用
-
-### 初始化加密器
-```go
-// 在 core/core.go 中
-func InitEncryptor() error {
-    key := GlobalConfig.Security.CredentialKey
-    if key == "" {
-        return fmt.Errorf("凭证加密密钥未配置")
-    }
-    enc, err := crypto.NewCredentialEncryptor(key)
-    if err != nil {
-        return err
-    }
-    GlobalEncryptor = enc
-    return nil
-}
-```
-
-### 加密/解密凭证
-```go
-// 加密
-encrypted, iv, err := global.Encryptor().Encrypt(credential)
-
-// 解密
-credential, err := global.Encryptor().Decrypt(encrypted, iv)
-```
-
-## 9. 快速开始命令
+## 7. 快速开始命令
 
 ```bash
 # 1. 初始化项目
@@ -312,7 +219,7 @@ go mod tidy
 
 # 2. 编译运行
 go build -o server.exe .
-go run .
+go run cmd/server/main.go
 
 # 3. 开发模式 (热重载)
 # 需要安装air: go install github.com/air-verse/air@latest
@@ -323,7 +230,7 @@ go test ./...
 go test -v ./server/...
 ```
 
-## 10. 常用依赖
+## 8. 常用依赖
 
 | 依赖 | 版本 | 用途 |
 |------|------|------|
@@ -331,11 +238,212 @@ go test -v ./server/...
 | viper | v1.18.x | 配置管理 |
 | gorm | v1.25.x | ORM框架 |
 | mysql | v1.5.x | MySQL驱动 |
-| go-imap | v1.2.x | IMAP客户端 |
 | go-redis | v9.3.x | Redis客户端 |
+| logrus | v1.9.x | 日志 |
+
+---
+
+## 9. Provider模式架构
+
+### 适用场景
+- 需要支持多种外部服务提供商
+- 需要灵活切换/扩展不同实现
+- 需要Mock测试支持
+
+### 接口定义规范
+```go
+// EmailProvider 邮件提供商接口
+type EmailProvider interface {
+    // Name 返回提供商名称
+    Name() string
+    
+    // Connect 连接服务
+    Connect(ctx context.Context, email, credential string) error
+    
+    // TestConnection 测试连接
+    TestConnection(ctx context.Context) (*ConnectionResult, error)
+    
+    // FetchData 获取数据
+    FetchData(ctx context.Context, since time.Time, limit int) (*SyncResult, error)
+    
+    // Disconnect 断开连接
+    Disconnect() error
+    
+    // IsConnected 检查连接状态
+    IsConnected() bool
+}
+```
+
+### 工厂注册模式
+```go
+// 全局Provider注册表
+var providers = make(map[string]ProviderFactory)
+
+// ProviderFactory 工厂函数类型
+type ProviderFactory func(config *ProviderConfig) EmailProvider
+
+// Register 注册Provider工厂
+func Register(name string, factory ProviderFactory) {
+    providers[name] = factory
+}
+
+// Create 创建Provider实例
+func Create(name string, config *ProviderConfig) (EmailProvider, bool) {
+    factory, ok := providers[name]
+    if !ok {
+        return nil, false
+    }
+    return factory(config), true
+}
+
+// init函数自动注册
+func init() {
+    Register("126", NewNet126Provider)
+    Register("mock", NewMockProvider)
+}
+```
+
+### Mock Provider实现
+```go
+// MockProvider 用于测试的Mock实现
+type MockProvider struct {
+    connected      bool
+    mu             sync.Mutex
+    MockEmails     []*Email
+    MockConnectErr error  // 可配置的模拟错误
+}
+
+// 设置模拟数据的方法
+func (p *MockProvider) SetMockEmails(emails []*Email) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    p.MockEmails = emails
+}
+
+func (p *MockProvider) SetConnectError(err error) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    p.MockConnectErr = err
+}
+```
+
+### 文件组织结构
+```
+server/pkg/
+├── email/
+│   └── provider/
+│       ├── provider.go      # 接口定义 + 工厂注册
+│       ├── provider_test.go # 注册/创建测试
+│       ├── mock.go          # Mock实现
+│       ├── net126.go        # 126邮箱实现
+│       └── gmail.go         # Gmail实现 (待开发)
+│
+└── crypto/
+│   ├── credential.go        # 凭证加密
+│   └── credential_test.go   # 加密测试
+```
+
+---
+
+## 10. 凭证加密规范
+
+### 加密算法
+- 使用 **AES-256-GCM**（认证加密）
+- 密钥长度：32字节
+- IV/Nonce：GCM标准12字节
+
+### CredentialEncryptor实现
+```go
+// CredentialEncryptor 凭证加密器
+type CredentialEncryptor struct {
+    key []byte // 32字节密钥
+}
+
+// NewCredentialEncryptor 创建加密器
+func NewCredentialEncryptor(masterKey string) (*CredentialEncryptor, error) {
+    if len(masterKey) != 32 {
+        return nil, ErrInvalidKeyLength
+    }
+    return &CredentialEncryptor{key: []byte(masterKey)}, nil
+}
+
+// Encrypt 加密凭证，返回密文和IV
+func (e *CredentialEncryptor) Encrypt(plaintext string) (encrypted, iv string, err error) {
+    // 1. 创建AES cipher
+    block, _ := aes.NewCipher(e.key)
+    
+    // 2. 创建GCM模式
+    gcm, _ := cipher.NewGCM(block)
+    
+    // 3. 生成随机nonce
+    nonce := make([]byte, gcm.NonceSize())
+    io.ReadFull(rand.Reader, nonce)
+    
+    // 4. 加密
+    ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), nil)
+    
+    // 5. Base64编码返回
+    encrypted = base64.StdEncoding.EncodeToString(ciphertext)
+    iv = base64.StdEncoding.EncodeToString(nonce)
+    return encrypted, iv, nil
+}
+```
+
+### 数据库存储设计
+```sql
+CREATE TABLE email_accounts (
+    encrypted_credential TEXT NOT NULL COMMENT 'AES-256-GCM加密的授权码',
+    credential_iv VARCHAR(64) NOT NULL COMMENT '加密IV (Base64)',
+    ...
+);
+```
+
+### 密钥管理
+```go
+// 环境变量读取密钥
+masterKey := os.Getenv("CREDENTIAL_KEY")  // 必须是32字节
+
+// 生成新密钥
+func GenerateKey() (string, error) {
+    key := make([]byte, 32)
+    io.ReadFull(rand.Reader, key)
+    return string(key), nil
+}
+```
+
+### 测试规范
+```go
+func TestEncryptDecrypt(t *testing.T) {
+    tests := []struct {
+        name      string
+        plaintext string
+    }{
+        {"normal text", "hello world"},
+        {"chinese text", "这是一段中文文本"},
+        {"empty string", ""},
+        {"long text", strings.Repeat("a", 1000)},
+    }
+    
+    for _, tt := range tests {
+        encrypted, iv, _ := enc.Encrypt(tt.plaintext)
+        decrypted, _ := enc.Decrypt(encrypted, iv)
+        if decrypted != tt.plaintext {
+            t.Errorf("Decrypt mismatch")
+        }
+    }
+}
+
+// 重要测试：相同明文产生不同密文
+func TestEncryptProducesDifferentCiphertext(t *testing.T) {
+    encrypted1, iv1, _ := enc.Encrypt("same")
+    encrypted2, iv2, _ := enc.Encrypt("same")
+    // IV必须不同
+    if iv1 == iv2 { t.Error("IVs should differ") }
+}
+```
 
 ---
 
 > 生成时间: 2026-04-08
-> 更新: 2026-04-09 (新增Provider插件架构、凭证加密、同步服务)
+> 更新: 2026-04-14 (添加Provider模式和凭证加密规范)
 > 适用于: Go后端开发
