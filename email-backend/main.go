@@ -26,6 +26,7 @@ func main() {
 
 	// 3. 自动迁移表结构
 	if err := core.GlobalDB.AutoMigrate(
+		&model.User{},
 		&model.Email{},
 		&model.EmailAccount{},
 		&model.ActionItem{},

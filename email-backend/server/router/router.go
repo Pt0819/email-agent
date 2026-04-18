@@ -8,6 +8,7 @@ import (
 	"email-backend/server/middleware"
 	"email-backend/server/pkg/agent"
 	"email-backend/server/repository"
+	"email-backend/server/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,7 +20,7 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 	r.Use(middleware.Logger())
 	r.Use(gin.Recovery())
 
-	// 健康检查
+	// 健康检查（公开）
 	r.GET("/health", v1.HealthCheck)
 
 	// 创建Agent客户端
@@ -27,20 +28,38 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 
 	// 创建Repository
 	emailRepo := repository.NewEmailRepository(global.DB())
+	userRepo := repository.NewUserRepository(global.DB())
+
+	// 创建Service
+	userService := service.NewUserService(userRepo)
+
+	// JWT中间件
+	jwtAuth := middleware.JWTAuth(userService)
 
 	// API v1
 	v1Group := r.Group("/api/v1")
 	{
-		// 邮件路由
-		v1.SetupEmailRoutes(v1Group, agentClient, emailRepo)
+		// 公开路由（无需认证）
+		v1.SetupAuthRoutes(v1Group, userService)
 
-		// 账户路由
-		v1.SetupAccountRoutes(v1Group)
+		// 受保护路由（需要认证）
+		protected := v1Group.Group("")
+		protected.Use(jwtAuth)
+		{
+			// auth/me 也需要保护
+			protected.GET("/auth/me", v1.NewAuthHandler(userService).Me)
 
-		// 同步路由
-		v1.SetupSyncRoutes(v1Group, agentClient)
+			// 邮件路由
+			v1.SetupEmailRoutes(protected, agentClient, emailRepo)
 
-		// 摘要路由
-		v1.SetupSummaryRoutes(v1Group, agentClient, emailRepo)
+			// 账户路由
+			v1.SetupAccountRoutes(protected)
+
+			// 同步路由
+			v1.SetupSyncRoutes(protected, agentClient)
+
+			// 摘要路由
+			v1.SetupSummaryRoutes(protected, agentClient, emailRepo)
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"email-backend/server/global"
+	"email-backend/server/middleware"
 	"email-backend/server/pkg/agent"
 	"email-backend/server/repository"
 	"email-backend/server/service"
@@ -47,7 +48,7 @@ func (h *SyncHandler) TriggerSync(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 
 	// TODO: 从JWT获取用户ID
-	userID := int64(1)
+	userID := middleware.GetUserID(c)
 
 	var results []*service.SyncResult
 	var err error
@@ -84,7 +85,7 @@ func (h *SyncHandler) TriggerSync(c *gin.Context) {
 // SyncStatus 获取同步状态
 func (h *SyncHandler) SyncStatus(c *gin.Context) {
 	// TODO: 从JWT获取用户ID
-	userID := int64(1)
+	userID := middleware.GetUserID(c)
 
 	status, err := h.syncService.GetSyncStatus(c.Request.Context(), userID)
 	if err != nil {

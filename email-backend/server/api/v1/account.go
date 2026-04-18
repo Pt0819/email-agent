@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"email-backend/server/global"
+	"email-backend/server/middleware"
 	"email-backend/server/model"
 	emailRequest "email-backend/server/model/request"
 	respModel "email-backend/server/model/response"
@@ -43,8 +44,7 @@ func SetupAccountRoutes(r *gin.RouterGroup) {
 
 // ListAccounts 获取账户列表
 func (h *AccountHandler) ListAccounts(c *gin.Context) {
-	// TODO: 从JWT获取用户ID
-	userID := int64(1)
+	userID := middleware.GetUserID(c)
 
 	accounts, err := h.accountService.List(c.Request.Context(), userID)
 	if err != nil {
@@ -115,8 +115,8 @@ func (h *AccountHandler) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	// TODO: 从JWT获取用户ID
-	userID := int64(1)
+	// 获取当前用户ID
+	userID := middleware.GetUserID(c)
 
 	account := &model.EmailAccount{
 		UserID:       userID,

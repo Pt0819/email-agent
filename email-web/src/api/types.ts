@@ -14,6 +14,33 @@ export interface PageData<T = unknown> {
   total_pages: number;
 }
 
+// ==================== 认证类型 ====================
+
+export interface User {
+  id: number;
+  user_id: string;
+  username: string;
+  email: string;
+  created_at: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  expires_at: string;
+  user: User;
+}
+
 // ==================== 邮件类型 ====================
 
 export type EmailCategory =
