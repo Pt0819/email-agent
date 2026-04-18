@@ -1,8 +1,8 @@
 # 后续开发计划
 
-> 版本：v1.0
+> 版本：v1.1
 > 日期：2026-04-18
-> 状态：规划中
+> 状态：进行中
 
 ---
 
@@ -24,6 +24,7 @@
 - 邮件同步（手动触发 + 并发同步 + 自动分类）
 - Agent HTTP客户端
 - AES-256-GCM凭证加密
+- **用户认证系统（JWT登录注册、多用户隔离）**
 
 **Python Agent (email-agent)**
 - 单封/批量邮件分类
@@ -36,6 +37,7 @@
 - 邮件列表（筛选、分页、关键词搜索）
 - 邮件详情（分类信息、正文展示）
 - 设置页（账户管理、同步触发）
+- **登录/注册页面、路由守卫、用户菜单**
 
 ---
 
@@ -45,45 +47,49 @@
 
 > 缺少这些功能，系统无法安全地多用户使用
 
-#### 2.1 用户认证系统
+#### 2.1 用户认证系统 ✅ 已完成
 
 | 项目 | 内容 |
 |------|------|
 | **模块** | Backend + Web |
-| **现状** | 所有Handler硬编码 `userID = 1`，无鉴权中间件 |
-| **目标** | JWT登录注册，多用户隔离 |
+| **状态** | ✅ 已完成 (2026-04-18) |
+| **实现** | JWT登录注册、16位业务ID、多用户隔离、路由守卫 |
 
 **后端任务：**
 
-- [ ] 用户模型（`users`表已定义在`sql/init.sql`）
-- [ ] 注册/登录API：`POST /api/v1/auth/register`、`POST /api/v1/auth/login`
-- [ ] JWT中间件：Token生成、验证、续期
-- [ ] 所有Handler替换硬编码userID，改为从Token上下文获取
-- [ ] CORS中间件完善
+- [x] 用户模型（`users`表已定义在`sql/init.sql`）
+- [x] 注册/登录API：`POST /api/v1/auth/register`、`POST /api/v1/auth/login`
+- [x] JWT中间件：Token生成、验证、续期
+- [x] 所有Handler替换硬编码userID，改为从Token上下文获取
+- [x] CORS中间件完善
 
 **前端任务：**
 
-- [ ] 登录页面 `Login.tsx`
-- [ ] 注册页面 `Register.tsx`
-- [ ] Token管理（localStorage存储、Axios拦截器自动携带）
-- [ ] 路由守卫（未登录跳转登录页）
+- [x] 登录/注册页面 `Login.tsx`（合并为一个页面，标签切换）
+- [x] Token管理（localStorage存储、Axios拦截器自动携带）
+- [x] 路由守卫（未登录跳转登录页）
+- [x] 401响应自动跳转登录页
 
 **涉及文件：**
 
 ```
 email-backend/server/
-├── api/v1/auth.go              # 新增
-├── middleware/auth.go           # 新增
-├── model/user.go               # 新增
-├── repository/user_repo.go     # 新增
-├── service/user_service.go     # 新增
-└── router/router.go            # 修改
+├── api/v1/auth.go              # ✅ 新增
+├── middleware/auth.go           # ✅ 新增
+├── model/user.go               # ✅ 新增
+├── model/request/auth.go       # ✅ 新增
+├── model/response/auth.go      # ✅ 新增
+├── repository/user_repo.go     # ✅ 新增
+├── service/user_service.go     # ✅ 新增
+└── router/router.go            # ✅ 修改（公开/保护路由分组）
 
 email-web/src/
-├── pages/Login.tsx             # 新增
-├── pages/Register.tsx          # 新增
-├── api/authApi.ts              # 新增
-└── components/ProtectedRoute.tsx  # 新增
+├── pages/Login.tsx             # ✅ 新增（登录+注册合一）
+├── api/authApi.ts              # ✅ 新增
+├── api/client.ts               # ✅ 修改（401处理）
+├── api/types.ts                # ✅ 修改（User类型）
+├── App.tsx                     # ✅ 修改（路由守卫）
+└── components/layout/AppLayout.tsx  # ✅ 修改（用户菜单）
 ```
 
 ---
@@ -444,7 +450,7 @@ email-backend/server/
 2026-04 ──────────────────────────────────────────────
   │
   │  第一阶段：核心完善（P0）
-  │  ├── 用户认证系统
+  │  ├── 用户认证系统 ✅ 已完成
   │  ├── Action Items API + UI
   │  └── LLM配置管理
   │
@@ -481,12 +487,12 @@ email-backend/server/
 
 ### 第一阶段验收
 
-| 序号 | 验收项 | 通过标准 |
-|------|--------|---------|
-| 1 | 用户注册登录 | 新用户可注册、登录后看到自己的数据 |
-| 2 | 数据隔离 | 不同用户只能看到自己的邮件和账户 |
-| 3 | 行动项展示 | 邮件详情页显示提取的行动项，可标记完成 |
-| 4 | LLM配置 | 用户可切换LLM Provider，配置生效 |
+| 序号 | 验收项 | 状态 | 通过标准 |
+|------|--------|------|---------|
+| 1 | 用户注册登录 | ✅ 已完成 | 新用户可注册、登录后看到自己的数据 |
+| 2 | 数据隔离 | ✅ 已完成 | 不同用户只能看到自己的邮件和账户 |
+| 3 | 行动项展示 | ⏳ 待开发 | 邮件详情页显示提取的行动项，可标记完成 |
+| 4 | LLM配置 | ⏳ 待开发 | 用户可切换LLM Provider，配置生效 |
 
 ### 第二阶段验收
 
@@ -515,5 +521,5 @@ email-backend/server/
 
 ---
 
-*文档版本：v1.0*
+*文档版本：v1.1*
 *最后更新：2026-04-18*
