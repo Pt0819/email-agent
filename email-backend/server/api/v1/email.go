@@ -6,6 +6,7 @@ import (
 
 	emailRequest "email-backend/server/model/request"
 	respModel "email-backend/server/model/response"
+	"email-backend/server/middleware"
 	"email-backend/server/pkg/agent"
 	"email-backend/server/repository"
 	"email-backend/server/service"
@@ -63,6 +64,7 @@ func (h *EmailHandler) ListEmails(c *gin.Context) {
 	req := &emailRequest.ListRequest{
 		Page:      page,
 		PageSize:  pageSize,
+		UserID:    middleware.GetUserID(c),
 		AccountID: accountID,
 		Category:  c.Query("category"),
 		Status:    c.Query("status"),

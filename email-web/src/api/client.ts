@@ -35,6 +35,15 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error: AxiosError<ApiResponse>) => {
+    // 401 未授权 - 清除token并跳转登录页
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // 如果不在登录页，则跳转
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
     const message = error.response?.data?.message || error.message || '请求失败';
     console.error('API Error:', message);
     return Promise.reject(new Error(message));

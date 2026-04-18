@@ -9,6 +9,7 @@ import (
 
 	emailRequest "email-backend/server/model/request"
 	"email-backend/server/model"
+	"email-backend/server/middleware"
 	"email-backend/server/pkg/agent"
 	"email-backend/server/repository"
 
@@ -67,7 +68,7 @@ func (h *SummaryHandler) DailySummary(c *gin.Context) {
 	dateStr := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
 
 	// TODO: 从JWT获取用户ID
-	userID := int64(1)
+	userID := middleware.GetUserID(c)
 
 	// 使用List方法获取所有邮件（后续按日期过滤）
 	emailReq := &emailRequest.ListRequest{
