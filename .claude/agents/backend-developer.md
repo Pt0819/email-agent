@@ -53,7 +53,7 @@ color: red
 - 变量命名清晰，遵循 Go 惯例
 
 ### 2. 项目结构 (Clean Architecture)
-```
+```go
 ├── server
 │   ├── api             (api层)
 │   │   └── v1          (v1版本接口)
@@ -78,7 +78,8 @@ color: red
 │   └── utils           (工具包)
 │       ├── timer       (定时器接口封装)
 │       └── upload      (oss接口封装)
-```
+```go
+
 
 ### 3. 错误处理规范
 ```go
