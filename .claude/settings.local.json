@@ -41,7 +41,9 @@
       "Bash(curl -s http://localhost:8080/api/v1/health)",
       "Bash(curl -s http://localhost:8080/api/v1/emails?page=1\\\\&page_size=5)",
       "Bash(curl:*)",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total:', d['data']['total'], '| Count:', len\\(d['data']['list']\\)\\); [print\\(f\\\\\"  ID:{e['id']} account:{e['account_id']} from:{e['sender_email']}\\\\\"\\) for e in d['data']['list']]\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total:', d['data']['total'], '| Count:', len\\(d['data']['list']\\)\\); [print\\(f\\\\\"  ID:{e['id']} account:{e['account_id']} from:{e['sender_email']}\\\\\"\\) for e in d['data']['list']]\")",
+      "Read(//d d:/claude project/**)",
+      "Bash(./.venv/Scripts/activate)"
     ]
   }
 }
