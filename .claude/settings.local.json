@@ -43,7 +43,8 @@
       "Bash(curl:*)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total:', d['data']['total'], '| Count:', len\\(d['data']['list']\\)\\); [print\\(f\\\\\"  ID:{e['id']} account:{e['account_id']} from:{e['sender_email']}\\\\\"\\) for e in d['data']['list']]\")",
       "Read(//d d:/claude project/**)",
-      "Bash(./.venv/Scripts/activate)"
+      "Bash(./.venv/Scripts/activate)",
+      "Bash(pip install:*)"
     ]
   }
 }
