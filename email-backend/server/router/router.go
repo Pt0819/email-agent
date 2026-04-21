@@ -30,6 +30,7 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 	emailRepo := repository.NewEmailRepository(global.DB())
 	userRepo := repository.NewUserRepository(global.DB())
 	accountRepo := repository.NewAccountRepository(global.DB())
+	steamRepo := repository.NewSteamRepository(global.DB())
 
 	// 创建Service
 	userService := service.NewUserService(userRepo)
@@ -64,6 +65,9 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 
 			// 摘要路由
 			v1.SetupSummaryRoutes(protected, agentClient, emailRepo)
+
+		// Steam路由
+		v1.SetupSteamRoutes(protected, agentClient, steamRepo, emailRepo)
 		}
 	}
 

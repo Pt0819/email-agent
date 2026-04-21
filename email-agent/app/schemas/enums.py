@@ -13,6 +13,11 @@ class EmailCategory(str, Enum):
     NOTIFICATION = "notification"
     PROMOTION = "promotion"
     SPAM = "spam"
+    # Steam相关分类
+    STEAM_PROMOTION = "steam_promotion"
+    STEAM_WISHLIST = "steam_wishlist"
+    STEAM_NEWS = "steam_news"
+    STEAM_UPDATE = "steam_update"
     UNCLASSIFIED = "unclassified"
 
 

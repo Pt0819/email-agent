@@ -18,6 +18,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.classify import router as classify_router
 from app.api.v1.extract import router as extract_router
 from app.api.v1.summary import router as summary_router
+from app.api.v1.steam import router as steam_router
 
 
 @asynccontextmanager
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(classify_router, prefix="/api/v1")
     app.include_router(extract_router, prefix="/api/v1")
     app.include_router(summary_router, prefix="/api/v1")
+    app.include_router(steam_router, prefix="/api/v1")
 
     logger.info("FastAPI应用创建完成")
     return app

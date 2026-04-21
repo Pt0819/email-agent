@@ -17,9 +17,18 @@ CATEGORIES = [
     {"code": "notification", "name": "系统通知", "priority": "low",
      "description": "GitHub、Jira、CI/CD、系统告警"},
     {"code": "promotion", "name": "营销推广", "priority": "low",
-     "description": "广告、促销、商业推广"},
+     "description": "广告、促销、商业推广（非Steam）"},
     {"code": "spam", "name": "垃圾邮件", "priority": "low",
      "description": "诈骗、可疑内容、无价值邮件"},
+    # Steam游戏相关分类
+    {"code": "steam_promotion", "name": "Steam促销", "priority": "medium",
+     "description": "Steam商店促销、打折、特惠活动邮件（发件人含steampowered.com或noreply@steampowered.com）"},
+    {"code": "steam_wishlist", "name": "Steam愿望单", "priority": "medium",
+     "description": "Steam愿望单游戏降价通知、愿望单相关邮件"},
+    {"code": "steam_news", "name": "Steam资讯", "priority": "low",
+     "description": "Steam游戏新闻、更新公告、社区活动"},
+    {"code": "steam_update", "name": "Steam更新", "priority": "low",
+     "description": "Steam平台更新、游戏补丁通知、版本更新"},
 ]
 
 CATEGORY_TABLE = "\n".join(
@@ -50,6 +59,19 @@ def get_system_prompt() -> str:
 
 {PRIORITY_RULES}
 
+## Steam邮件识别规则（重要）
+当邮件满足以下任一条件时，应归类为steam_*类别而非promotion：
+1. 发件人邮箱包含 "steampowered.com" 或 "steam"
+2. 主题包含 "Steam"、"Steam商店"、"Steam Store" 等关键词
+3. 内容涉及具体Steam游戏促销（包含折扣价格、游戏名称）
+4. Steam愿望单通知（某游戏正在打折）
+
+Steam分类细分：
+- steam_promotion: 促销活动邮件，包含具体折扣信息
+- steam_wishlist: 愿望单降价通知
+- steam_news: 游戏资讯、新闻公告
+- steam_update: 游戏更新、补丁通知
+
 ## 输出格式要求
 
 请严格按以下JSON格式输出，不要包含其他内容：
@@ -63,7 +85,8 @@ def get_system_prompt() -> str:
 ## 注意事项
 1. 置信度反映分类的确定程度，高置信度(>0.8)用于典型邮件，低置信度(<0.5)用于模糊邮件
 2. 如果邮件涉及多个类别，选择最重要的那个
-3. reasoning不要超过50字
+3. Steam邮件优先于通用promotion分类
+4. reasoning不要超过50字
 """
 
 
