@@ -6,8 +6,8 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# 添加项目根目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
+# 添加项目根目录到路径，使 from app.* 导入生效
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
