@@ -1,8 +1,56 @@
 # 后续开发计划
 
-> 版本：v1.1
-> 日期：2026-04-18
+> 版本：v2.0
+> 日期：2026-04-21
 > 状态：进行中
+> **战略方向：以 Steam 游戏资讯为核心的智能邮件 Agent**
+
+---
+
+## 0. 战略方向调整
+
+### 0.1 定位转变
+
+项目从**通用邮件分类汇总**转向**Steam 游戏资讯智能推荐平台**。
+
+| 维度 | 原定位 | 新定位 |
+|------|--------|--------|
+| **核心价值** | 邮件智能分类 | Steam 游戏资讯聚合 + 个性化推荐 |
+| **用户场景** | 管理所有邮件 | 获取最新游戏咨询、促销活动 |
+| **AI 侧重** | 通用分类 | Steam 邮件解析 → 偏好分析 → 智能推荐 |
+| **数据来源** | 全部邮件 | Steam 邮件 + Steam Web API |
+
+### 0.2 迭代路径
+
+```
+Phase 6.1  Steam邮件解析          ← 当前优先级最高
+    │       识别促销/资讯，提取游戏信息
+    ▼
+Phase 6.2  Steam数据集成
+    │       绑定Steam账号，获取30天游玩记录
+    ▼
+Phase 6.3  用户偏好分析
+    │       LLM分析游戏偏好，构建用户画像
+    ▼
+Phase 6.4  智能游戏推荐
+    │       匹配资讯与偏好，生成个性化推荐
+    ▼
+Phase 6.5  推荐反馈闭环
+            用户反馈优化，推荐效果迭代
+```
+
+### 0.3 可行性评估
+
+> 详细分析见 [STEAM-RECOMMENDATION-FEASIBILITY.md](./STEAM-RECOMMENDATION-FEASIBILITY.md)
+
+| 模块 | 可行度 | 核心依赖 | 风险点 |
+|------|--------|----------|--------|
+| Steam邮件解析 | ⭐⭐⭐⭐⭐ (95%) | 现有IMAP + LLM | HTML邮件模板多变 |
+| Steam数据集成 | ⭐⭐⭐⭐ (80%) | Steam Web API + 用户API Key | API限流、需用户配置 |
+| 用户偏好分析 | ⭐⭐⭐⭐⭐ (90%) | LLM + 游玩数据 | 偏好标签覆盖率 |
+| 智能游戏推荐 | ⭐⭐⭐⭐⭐ (95%) | 偏好画像 + 促销数据 | 推荐多样性 |
+
+**总体可行性：⭐⭐⭐⭐ (85/100)，预计工期：6-10周**
 
 ---
 
@@ -11,10 +59,11 @@
 | Phase | 内容 | 状态 | 说明 |
 |-------|------|------|------|
 | Phase 1 | 三端项目结构搭建 | ✅ 已完成 | Go/Python/React 项目骨架 |
-| Phase 2 | 126邮箱IMAP接入 | ✅ 已完成 | IMAP Provider、ID命令、字符集处理 |
+| Phase 2 | 126邮箱IMAP接入 | ✅ 已完成 & 已测试 | IMAP Provider、ID命令、字符集处理（2026-04-21通过实际邮箱测试） |
 | Phase 3 | Go后端API | ✅ 基本完成 | Clean Architecture、CRUD、Agent通信 |
 | Phase 4 | Agent分类/提取/摘要 | ✅ 基本完成 | LLM集成（智谱/DeepSeek）、Mock测试 |
 | Phase 5 | React前端核心页面 | ✅ 基本完成 | 列表、详情、设置、仪表盘 |
+| Phase 6 | Steam游戏推荐系统 | 🚀 **核心方向** | 邮件解析 → 偏好分析 → 智能推荐 |
 
 ### 已实现功能清单
 
@@ -25,6 +74,13 @@
 - Agent HTTP客户端
 - AES-256-GCM凭证加密
 - **用户认证系统（JWT登录注册、多用户隔离）**
+- **126邮箱IMAP Provider（已通过实际邮箱测试）**
+  - IMAP ID命令支持（避免Unsafe Login）
+  - 中文字符集自动解码
+  - 连接重试机制（最多3次）
+  - 并发安全保护（sync.Mutex）
+  - 邮件列表搜索和分页
+  - 邮件正文解析（text/plain和text/html）
 
 **Python Agent (email-agent)**
 - 单封/批量邮件分类
@@ -43,99 +99,330 @@
 
 ## 2. 待开发任务
 
-### P0 - 核心缺失功能
+### P0 - Steam核心功能（最高优先级）
 
-> 缺少这些功能，系统无法安全地多用户使用
+> 项目核心方向，直接决定产品价值
 
-#### 2.1 用户认证系统 ✅ 已完成
+#### 2.1 Steam邮件解析（Phase 6.1）
+
+| 项目 | 内容 |
+|------|------|
+| **模块** | Backend + Agent |
+| **优先级** | **P0（最高）** |
+| **目标** | 识别并提取Steam邮件中的游戏信息 |
+| **工期** | 第1-2周 |
+
+**后端任务：**
+
+- [ ] 扩展邮件分类类别
+  - `steam_promotion` (促销邮件)
+  - `steam_wishlist` (愿望单通知)
+  - `steam_news` (游戏资讯)
+  - `steam_update` (游戏更新)
+- [ ] 数据库表创建
+  - `steam_games` 表（游戏基础信息：名称、开发商、标签、类型）
+  - `steam_deals` 表（促销信息：原价、折扣价、折扣率、起止日期）
+  - `email_game_tags` 表（邮件-游戏关联）
+- [ ] API端点
+  - `GET /api/v1/steam/emails` - 获取Steam分类邮件列表
+  - `GET /api/v1/steam/games` - 获取已提取的游戏列表
+  - `GET /api/v1/steam/deals` - 获取当前促销列表（支持筛选排序）
+  - `GET /api/v1/steam/deals/:id` - 获取促销详情
+
+**Agent任务：**
+
+- [ ] Steam信息提取Agent（`steam_extractor.py`）
+  - 解析HTML邮件结构（适配Steam邮件模板）
+  - 提取游戏名称、原价、折扣价、折扣率
+  - 识别游戏标签和类型
+  - 识别促销截止日期
+- [ ] Steam分类Prompt更新
+  - 增加Steam邮件分类规则
+  - 提取结果结构化输出（JSON Schema）
+
+**前端任务：**
+
+- [ ] Steam邮件列表页（与普通邮件列表区分）
+- [ ] 促销信息卡片展示（游戏封面、价格、折扣率）
+- [ ] 促销时间倒计时
+
+**涉及文件：**
+
+```
+email-backend/server/
+├── model/steam_game.go         # 新增
+├── model/steam_deal.go         # 新增
+├── repository/steam_repo.go    # 新增
+├── service/steam_service.go    # 新增
+└── api/v1/steam.go             # 新增
+
+email-agent/app/
+├── agents/steam_extractor.py   # 新增
+└── prompts/steam_extraction.py # 新增
+
+email-web/src/
+├── pages/SteamDeals.tsx        # 新增
+├── components/DealCard.tsx     # 新增
+└── api/steamApi.ts             # 新增
+```
+
+**验收标准：**
+- 收到Steam促销邮件后，自动提取游戏信息并存储
+- 游戏名称、价格、折扣提取准确率 > 90%
+- 前端可展示促销列表，支持按折扣率/价格排序
+
+---
+
+#### 2.2 Steam数据集成（Phase 6.2）
 
 | 项目 | 内容 |
 |------|------|
 | **模块** | Backend + Web |
-| **状态** | ✅ 已完成 (2026-04-18) |
-| **实现** | JWT登录注册、16位业务ID、多用户隔离、路由守卫 |
+| **优先级** | **P0** |
+| **目标** | 获取用户Steam 30天游玩记录 |
+| **工期** | 第3周 |
+| **前置依赖** | Phase 6.1 完成 |
+
+**Steam Web API能力：**
+
+| API | 端点 | 功能 | 说明 |
+|-----|------|------|------|
+| GetOwnedGames | `IPlayerService/GetOwnedGames` | 用户游戏库 | 含总游玩时长 |
+| GetRecentlyPlayedGames | `IPlayerService/GetRecentlyPlayedGames` | 最近2周游玩 | 含近期时长 |
+| GetPlayerSummaries | `ISteamUser/GetPlayerSummaries` | 用户资料 | 头像、昵称 |
+| GetSchemaForGame | `ISteamUserStats/GetSchemaForGame` | 游戏成就 | 可选 |
 
 **后端任务：**
 
-- [x] 用户模型（`users`表已定义在`sql/init.sql`）
-- [x] 注册/登录API：`POST /api/v1/auth/register`、`POST /api/v1/auth/login`
-- [x] JWT中间件：Token生成、验证、续期
-- [x] 所有Handler替换硬编码userID，改为从Token上下文获取
-- [x] CORS中间件完善
+- [ ] Steam Web API客户端（`pkg/steam/client.go`）
+  - HTTP客户端封装
+  - 请求限流（300次/分钟以内）
+  - 响应缓存（游戏元数据本地缓存24h）
+  - 错误处理和重试
+- [ ] Steam账号管理
+  - 用户绑定Steam ID
+  - 系统使用统一API Key（或用户自备）
+  - 验证账号有效性
+- [ ] 数据同步服务
+  - 定期同步用户游戏库（每日）
+  - 同步最近游玩记录
+  - 同步游戏元数据到 `steam_games` 表（标签、类型、封面图）
+- [ ] API端点
+  - `POST /api/v1/steam/bind` - 绑定Steam账号
+  - `GET /api/v1/steam/profile` - 获取Steam资料
+  - `DELETE /api/v1/steam/unbind` - 解绑账号
+  - `GET /api/v1/steam/games` - 获取游戏库
+  - `GET /api/v1/steam/games/recent` - 获取最近游玩
+  - `POST /api/v1/steam/sync` - 手动同步
 
 **前端任务：**
 
-- [x] 登录/注册页面 `Login.tsx`（合并为一个页面，标签切换）
-- [x] Token管理（localStorage存储、Axios拦截器自动携带）
-- [x] 路由守卫（未登录跳转登录页）
-- [x] 401响应自动跳转登录页
+- [ ] Steam设置页（账号绑定/解绑）
+- [ ] 游戏库列表展示（名称、游玩时长、最近游玩时间）
+- [ ] 游玩时长统计图表
 
 **涉及文件：**
 
 ```
 email-backend/server/
-├── api/v1/auth.go              # ✅ 新增
-├── middleware/auth.go           # ✅ 新增
-├── model/user.go               # ✅ 新增
-├── model/request/auth.go       # ✅ 新增
-├── model/response/auth.go      # ✅ 新增
-├── repository/user_repo.go     # ✅ 新增
-├── service/user_service.go     # ✅ 新增
-└── router/router.go            # ✅ 修改（公开/保护路由分组）
+├── pkg/steam/
+│   ├── client.go               # Steam API客户端
+│   ├── api.go                  # API封装
+│   └── types.go                # 数据类型
+├── service/steam_service.go    # 新增
+└── api/v1/steam.go             # 扩展
 
 email-web/src/
-├── pages/Login.tsx             # ✅ 新增（登录+注册合一）
-├── api/authApi.ts              # ✅ 新增
-├── api/client.ts               # ✅ 修改（401处理）
-├── api/types.ts                # ✅ 修改（User类型）
-├── App.tsx                     # ✅ 修改（路由守卫）
-└── components/layout/AppLayout.tsx  # ✅ 修改（用户菜单）
+├── pages/SteamSettings.tsx     # 新增
+├── components/GameLibrary.tsx  # 新增
+└── api/steamApi.ts             # 新增
 ```
+
+**验收标准：**
+- 用户可绑定Steam账号（输入Steam ID）
+- 显示最近30天游玩的游戏列表及游玩时长
+- 游戏元数据（标签、类型）完整度 > 80%
 
 ---
 
-#### 2.2 Action Items API + UI
+#### 2.3 用户偏好分析（Phase 6.3）
 
 | 项目 | 内容 |
 |------|------|
-| **模块** | 全栈 |
-| **现状** | `action_items`表已定义，Agent提取逻辑已实现，缺后端API和前端展示 |
-| **目标** | 展示提取的行动项，支持状态管理（待办/完成） |
+| **模块** | Agent + Backend |
+| **优先级** | **P0** |
+| **目标** | LLM分析用户游戏偏好类型，构建用户画像 |
+| **工期** | 第4周 |
+| **前置依赖** | Phase 6.2 完成 |
 
 **后端任务：**
 
-- [ ] ActionItem Model + Repository
-- [ ] API端点：
-  - `GET /api/v1/emails/:id/actions` - 获取邮件关联行动项
-  - `GET /api/v1/actions` - 获取用户所有行动项（按状态/优先级筛选）
-  - `PUT /api/v1/actions/:id` - 更新行动项状态
-  - `DELETE /api/v1/actions/:id` - 删除行动项
-- [ ] Agent提取结果自动写入action_items表
+- [ ] 用户偏好画像模型（`user_gaming_profile` 表）
+  - 偏好标签及权重（如：{"开放世界": 1200, "RPG": 800}）
+  - 偏好类型（如：["动作冒险", "策略模拟"]）
+  - 游戏风格分析结果（LLM生成）
+  - 特殊兴趣识别（独立游戏/3A、剧情/玩法驱动等）
+- [ ] 偏好分析触发（游戏库同步后自动分析）
+- [ ] API端点
+  - `GET /api/v1/steam/profile/preference` - 获取偏好画像
+  - `POST /api/v1/steam/profile/analyze` - 重新分析
+
+**Agent任务：**
+
+- [ ] 偏好分析Agent（`preference_analyzer.py`）
+  - **方案A（MVP）**: 规则-based分析
+    - 游戏标签频率统计
+    - 按游玩时长加权
+    - 生成偏好标签排序
+  - **方案B（增强）**: LLM深度分析
+    - 解读偏好背后的游戏风格
+    - 识别单人与多人、开放世界与线性等偏好
+    - 特殊兴趣识别（独立游戏/3A大作、像素风/写实风）
+- [ ] 偏好分析Prompt
 
 **前端任务：**
 
-- [ ] 邮件详情页增加"行动项"卡片
-- [ ] 行动项列表页（可筛选、可标记完成）
-- [ ] 仪表盘增加待办事项概览
+- [ ] 偏好画像展示页
+  - 偏好标签云可视化
+  - Top类型、风格展示
+  - 偏好权重雷达图
 
 **涉及文件：**
 
 ```
 email-backend/server/
-├── api/v1/action.go            # 新增
-├── model/action_item.go        # 新增
-├── repository/action_repo.go   # 新增
-├── service/action_service.go   # 新增
+├── model/user_gaming_profile.go    # 新增
+├── repository/profile_repo.go      # 新增
+├── service/preference_service.go   # 新增
+└── api/v1/preference.go            # 新增
+
+email-agent/app/
+├── agents/preference_analyzer.py   # 新增
+└── prompts/preference_analysis.py  # 新增
 
 email-web/src/
-├── pages/ActionItems.tsx       # 新增
-├── components/ActionCard.tsx   # 新增
-└── api/actionApi.ts            # 新增
+├── pages/PreferenceAnalysis.tsx    # 新增
+├── components/PreferenceChart.tsx  # 新增
+└── api/steamApi.ts                 # 扩展
 ```
+
+**验收标准：**
+- 自动生成用户偏好画像
+- 偏好标签覆盖率 > 85%
+- LLM分析的偏好描述准确、有洞察力
+- 用户反馈准确率 > 80%
 
 ---
 
-#### 2.3 LLM配置管理
+#### 2.4 智能游戏推荐（Phase 6.4）
+
+| 项目 | 内容 |
+|------|------|
+| **模块** | Backend + Agent + Web |
+| **优先级** | **P0** |
+| **目标** | 根据偏好画像推荐游戏 |
+| **工期** | 第5-6周 |
+| **前置依赖** | Phase 6.3 完成 |
+
+**后端任务：**
+
+- [ ] 推荐算法引擎
+  - 标签匹配度计算（用户偏好标签 vs 游戏标签）
+  - 多维度评分（类型、风格、开发商历史偏好）
+  - 个性化排序算法
+  - 过滤已拥有游戏
+- [ ] 推荐结果存储（`game_recommendations` 表）
+  - 匹配分数、推荐理由
+  - 用户反馈追踪（like/dislike/ignore）
+- [ ] API端点
+  - `GET /api/v1/recommendations` - 获取推荐列表
+  - `GET /api/v1/recommendations/deals` - 仅推荐促销游戏
+  - `POST /api/v1/recommendations/:id/feedback` - 用户反馈
+
+**Agent任务：**
+
+- [ ] 推荐理由生成Agent（`recommendation.py`）
+  - LLM生成个性化推荐理由
+  - 结合用户游玩历史和偏好
+  - 强调匹配点（如："基于你最近大量游玩《艾尔登法环》..."）
+- [ ] 推荐理由Prompt
+
+**前端任务：**
+
+- [ ] 推荐列表页面（卡片式布局）
+  - 游戏封面 + 价格 + 折扣
+  - 匹配度评分可视化
+  - 推荐理由展开/收起
+- [ ] 用户反馈交互（点赞/点踩）
+- [ ] 推荐筛选（仅促销/全部/按类型）
+
+**涉及文件：**
+
+```
+email-backend/server/
+├── model/recommendation.go           # 新增
+├── repository/recommendation_repo.go # 新增
+├── service/recommendation_service.go # 新增
+└── api/v1/recommendation.go          # 新增
+
+email-agent/app/
+├── agents/recommendation.py          # 新增
+└── prompts/recommendation_reason.py  # 新增
+
+email-web/src/
+├── pages/Recommendations.tsx         # 新增
+├── components/RecommendationCard.tsx # 新增
+└── api/recommendationApi.ts          # 新增
+```
+
+**验收标准：**
+- 生成个性化推荐列表（非已拥有游戏）
+- 推荐理由自然流畅、有说服力、结合用户历史
+- 用户满意度 > 70%
+- 推荐多样性 > 60%（不只推荐同一类型）
+
+---
+
+#### 2.5 推荐反馈闭环（Phase 6.5）
+
+| 项目 | 内容 |
+|------|------|
+| **模块** | Backend + Agent |
+| **优先级** | **P1** |
+| **目标** | 用户反馈驱动推荐优化 |
+| **工期** | 第7周 |
+| **前置依赖** | Phase 6.4 完成 |
+
+**任务：**
+
+- [ ] 反馈数据收集
+  - 点赞/点踩记录存储
+  - 忽略行为追踪
+  - 点击/查看率统计
+- [ ] 偏好画像动态更新
+  - 正反馈增强相关标签权重
+  - 负反馈降低标签权重
+  - 定期重新分析偏好人
+- [ ] 推荐多样性策略
+  - 引入"惊喜推荐"（低匹配但可能有兴趣）
+  - 探索-利用平衡（Exploration vs Exploitation）
+- [ ] 推荐效果指标
+  - 点击率 (CTR)
+  - 正反馈率
+  - 推荐覆盖率
+
+**验收标准：**
+- 用户反馈自动影响后续推荐
+- 推荐结果随反馈逐步改善
+- 无"信息茧房"问题（推荐多样性不下降）
+
+---
+
+### P1 - 基础功能完善
+
+> 支撑Steam核心功能所需的基础能力
+
+#### 2.6 LLM配置管理
 
 | 项目 | 内容 |
 |------|------|
@@ -184,297 +471,51 @@ email-web/src/
 
 ---
 
-### P1 - 智能功能增强
-
-> 提升系统的智能化水平，从基础分类走向语义理解
-
-#### 2.4 ChromaDB向量存储
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Agent |
-| **现状** | `vectorstore/`目录为空，无向量存储能力 |
-| **目标** | 邮件内容向量化存储，支持语义相似检索 |
-
-**任务：**
-
-- [ ] ChromaDB客户端封装（连接管理、Collection管理）
-- [ ] 邮件内容向量化存储（分类后自动入库）
-- [ ] 语义相似邮件检索API：`POST /api/v1/search/similar`
-- [ ] 相关邮件推荐（查看某封邮件时推荐相似邮件）
-
-**涉及文件：**
-
-```
-email-agent/app/
-├── vectorstore/
-│   ├── __init__.py             # 新增
-│   └── chroma_client.py        # 新增
-├── embeddings/
-│   ├── __init__.py             # 新增
-│   └── bge.py                  # 新增
-└── api/routes/search.py        # 新增
-```
-
----
-
-#### 2.5 BGE Embedding集成
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Agent |
-| **现状** | 未实现 |
-| **目标** | 使用BAAI/bge-m3模型对中文邮件内容向量化 |
-
-**任务：**
-
-- [ ] BGE-M3模型加载（支持本地部署和API调用）
-- [ ] 邮件内容Embedding生成
-- [ ] 批量向量化处理
-- [ ] 向量维度和相似度阈值配置
-
----
-
-#### 2.6 Orchestrator编排器
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Agent |
-| **现状** | `agents/`目录为空，各Agent独立调用 |
-| **目标** | 统一编排 分类→提取→向量化 完整流水线 |
-
-**任务：**
-
-- [ ] Orchestrator实现（Pipeline模式）
-- [ ] 完整处理流程：`POST /api/v1/process` → 分类 → 提取行动项 → 向量化存储
-- [ ] 步骤失败处理和重试策略
-- [ ] 处理进度回调
-
-**涉及文件：**
-
-```
-email-agent/app/
-├── agents/
-│   ├── __init__.py             # 新增
-│   ├── orchestrator.py         # 新增
-│   ├── classification.py       # 新增（从service迁移）
-│   ├── extraction.py           # 新增（从service迁移）
-│   └── summary.py              # 新增（从service迁移）
-```
-
----
-
-#### 2.7 周报摘要API
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Backend + Agent |
-| **现状** | 仅实现每日摘要 |
-| **目标** | 支持周报摘要生成 |
-
-**任务：**
-
-- [ ] 后端API：`GET /api/v1/summary/weekly?start_date=&end_date=`
-- [ ] Agent端周报生成Prompt
-- [ ] 前端周报展示页面
-
----
-
-### P2 - 功能完善
-
-> 提升用户体验和系统可靠性
-
-#### 2.8 统计分析页面
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Web |
-| **现状** | 仪表盘仅有基础数字统计 |
-| **目标** | 分类趋势图、发件人统计、处理效率可视化 |
-
-**任务：**
-
-- [ ] 后端统计API：`GET /api/v1/stats/overview`
-- [ ] 分类趋势折线图（近7/30天）
-- [ ] 发件人Top10柱状图
-- [ ] 分类分布饼图
-- [ ] 处理效率指标（分类数量、平均置信度）
-
-**涉及文件：**
-
-```
-email-web/src/
-├── pages/Stats.tsx             # 新增
-├── components/charts/
-│   ├── CategoryTrend.tsx       # 新增
-│   ├── SenderRanking.tsx       # 新增
-│   └── CategoryPie.tsx         # 新增
-└── api/statsApi.ts             # 新增
-```
-
----
-
-#### 2.9 Redis异步队列
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Backend + Agent |
-| **现状** | 批量分类为同步HTTP调用，大数量会超时 |
-| **目标** | Redis消息队列异步处理 |
-
-**任务：**
-
-- [ ] Backend任务发布到Redis队列
-- [ ] Agent消费者拉取任务处理
-- [ ] 任务状态跟踪（pending/processing/done/failed）
-- [ ] 失败重试机制（最多3次）
-
----
-
-#### 2.10 定时自动同步
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Backend |
-| **现状** | 仅支持手动触发同步 |
-| **目标** | Cron定时拉取新邮件并自动分类 |
-
-**任务：**
-
-- [ ] Go Cron调度器集成
-- [ ] 可配置同步间隔（默认5分钟）
-- [ ] 同步后自动触发分类
-- [ ] 同步状态记录和展示
-
-**涉及文件：**
-
-```
-email-backend/server/
-├── service/sync_scheduler.go   # 新增
-└── core/cron.go                # 新增
-```
-
----
-
-#### 2.11 附件处理
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Backend + Web |
-| **现状** | 仅标记是否有附件，无下载功能 |
-| **目标** | 附件信息提取和下载 |
-
-**任务：**
-
-- [ ] IMAP附件提取
-- [ ] 附件元数据存储（文件名、大小、类型）
-- [ ] 附件下载API：`GET /api/v1/emails/:id/attachments/:aid`
-- [ ] 前端附件列表展示和下载按钮
-
----
-
-### P3 - 生产化
-
-> 满足部署上线要求
-
-#### 2.12 Docker Compose部署
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | DevOps |
-| **现状** | 各服务本地手动启动 |
-| **目标** | 一键部署全套环境 |
-
-**任务：**
-
-- [ ] 各服务Dockerfile编写
-- [ ] `docker-compose.yml`（开发环境，单机部署）
-- [ ] `docker-compose.server.yml`（生产环境，分离部署）
-- [ ] `deploy.sh`一键部署脚本
-
----
-
-#### 2.13 Nginx反向代理
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | DevOps |
-| **现状** | 未配置 |
-| **目标** | SSL终止、静态托管、API代理 |
-
-**任务：**
-
-- [ ] Nginx配置文件
-- [ ] 前端静态资源托管
-- [ ] API请求代理到Go后端
-- [ ] SSL证书配置模板
-
----
-
-#### 2.14 安全加固
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | DevOps |
-| **现状** | 基础安全措施已实现（凭证加密） |
-| **目标** | 生产级安全 |
-
-**任务：**
-
-- [ ] `.env.example`完善
-- [ ] API限流（Gin Rate Limit中间件）
-- [ ] 请求日志审计
-- [ ] 敏感数据脱敏（API响应中不返回授权码等）
-
----
-
-#### 2.15 通义千问Provider
-
-| 项目 | 内容 |
-|------|------|
-| **模块** | Agent |
-| **现状** | 设计文档提到但未实现 |
-| **目标** | 支持通义千问作为LLM Provider |
-
-**任务：**
-
-- [ ] `qwen.py` Provider实现
-- [ ] API对接和测试
-- [ ] 配置选项
-
 ---
 
 ## 3. 开发路线图
 
 ```
-2026-04 ──────────────────────────────────────────────
+2026-04 下旬 ──────────────────────────────────────────────
   │
-  │  第一阶段：核心完善（P0）
-  │  ├── 用户认证系统 ✅ 已完成
-  │  ├── Action Items API + UI
-  │  └── LLM配置管理
+  │  ★ 第一阶段：Steam邮件解析（P0 - 核心）
+  │  ├── 扩展邮件分类类别（steam_promotion/wishlist/news）
+  │  ├── Steam信息提取Agent（HTML解析、游戏信息提取）
+  │  ├── 游戏信息存储（steam_games + steam_deals表）
+  │  └── 前端促销列表展示
   │
-2026-05 上旬 ──────────────────────────────────────────
+2026-05 上旬 ──────────────────────────────────────────────
   │
-  │  第二阶段：智能增强（P1）
-  │  ├── Orchestrator编排器
-  │  ├── ChromaDB + BGE Embedding
-  │  └── 周报摘要
+  │  ★ 第二阶段：Steam数据集成（P0 - 核心）
+  │  ├── Steam Web API客户端
+  │  ├── Steam账号绑定/解绑
+  │  ├── 用户游戏库同步（30天游玩记录）
+  │  └── 前端游戏库展示
   │
-2026-05 中旬 ──────────────────────────────────────────
+2026-05 中旬 ──────────────────────────────────────────────
   │
-  │  第三阶段：体验优化（P2）
-  │  ├── 统计分析页面
+  │  ★ 第三阶段：偏好分析 + 智能推荐（P0 - 核心）
+  │  ├── 偏好分析Agent（规则+LLM）
+  │  ├── 用户偏好画像
+  │  ├── 推荐算法引擎
+  │  ├── LLM推荐理由生成
+  │  └── 前端推荐页面
+  │
+2026-05 下旬 ──────────────────────────────────────────────
+  │
+  │  第四阶段：反馈闭环 + 基础完善（P1）
+  │  ├── 推荐反馈闭环
+  │  ├── LLM配置管理
+  │  ├── Action Items API
+  │  └── Orchestrator编排器
+  │
+2026-06 ──────────────────────────────────────────────
+  │
+  │  第五阶段：体验优化 + 生产部署（P2/P3）
+  │  ├── 统计分析（Steam游戏维度）
   │  ├── Redis异步队列
-  │  ├── 定时自动同步
-  │  └── 附件处理
-  │
-2026-05 下旬 ──────────────────────────────────────────
-  │
-  │  第四阶段：生产部署（P3）
   │  ├── Docker Compose
-  │  ├── Nginx配置
-  │  ├── 安全加固
+  │  ├── Nginx + 安全加固
   │  └── 通义千问Provider
   │
   ▼
@@ -485,41 +526,81 @@ email-backend/server/
 
 ## 4. 验收标准
 
-### 第一阶段验收
+### 已完成验收
 
 | 序号 | 验收项 | 状态 | 通过标准 |
 |------|--------|------|---------|
 | 1 | 用户注册登录 | ✅ 已完成 | 新用户可注册、登录后看到自己的数据 |
 | 2 | 数据隔离 | ✅ 已完成 | 不同用户只能看到自己的邮件和账户 |
-| 3 | 行动项展示 | ⏳ 待开发 | 邮件详情页显示提取的行动项，可标记完成 |
-| 4 | LLM配置 | ⏳ 待开发 | 用户可切换LLM Provider，配置生效 |
+| 3 | 126邮箱连接 | ✅ 已完成 | IMAP连接、ID命令、中文字符集解码正常 |
+| 4 | 邮件同步 | ✅ 已完成 | 手动触发同步 + 定时自动同步 |
+| 5 | Agent分类/摘要 | ✅ 已完成 | 智谱GLM/DeepSeek集成、每日摘要生成 |
 
-### 第二阶段验收
-
-| 序号 | 验收项 | 通过标准 |
-|------|--------|---------|
-| 5 | 完整流水线 | 同步邮件后自动完成分类→提取→向量化 |
-| 6 | 语义搜索 | 输入关键词可检索语义相关邮件 |
-| 7 | 周报生成 | 可生成指定日期范围的邮件周报 |
-
-### 第三阶段验收
+### 第一阶段验收：Steam邮件解析
 
 | 序号 | 验收项 | 通过标准 |
 |------|--------|---------|
-| 8 | 统计图表 | 展示分类趋势、发件人排行、分类分布 |
-| 9 | 异步处理 | 50封邮件批量分类不超时，可查看进度 |
-| 10 | 自动同步 | 5分钟间隔自动拉取新邮件 |
-| 11 | 附件下载 | 可查看并下载邮件附件 |
+| 6 | Steam邮件识别 | 自动识别促销/愿望单/资讯邮件，准确率 > 90% |
+| 7 | 游戏信息提取 | 正确提取游戏名称、价格、折扣率 |
+| 8 | 促销展示 | 前端展示促销列表，支持按折扣/价格排序 |
 
-### 第四阶段验收
+### 第二阶段验收：Steam数据集成
 
 | 序号 | 验收项 | 通过标准 |
 |------|--------|---------|
-| 12 | Docker部署 | `docker-compose up -d` 一键启动全部服务 |
-| 13 | HTTPS访问 | 通过Nginx提供HTTPS访问 |
-| 14 | 安全审计 | 无明文密钥、API限流生效、日志可追溯 |
+| 9 | Steam绑定 | 用户可输入Steam ID绑定账号 |
+| 10 | 游戏库同步 | 显示最近30天游玩游戏及游玩时长 |
+| 11 | 元数据完整 | 游戏标签、类型完整度 > 80% |
+
+### 第三阶段验收：偏好分析 + 推荐
+
+| 序号 | 验收项 | 通过标准 |
+|------|--------|---------|
+| 12 | 偏好画像 | 自动生成偏好标签，覆盖率 > 85% |
+| 13 | 个性化推荐 | 推荐非已拥有游戏，理由自然有说服力 |
+| 14 | 用户满意度 | 推荐满意度 > 70%，多样性 > 60% |
+
+### 第四阶段验收：反馈闭环 + 基础完善
+
+| 序号 | 验收项 | 通过标准 |
+|------|--------|---------|
+| 15 | 反馈优化 | 用户反馈影响后续推荐，无信息茧房 |
+| 16 | LLM配置 | 用户可切换LLM Provider，配置生效 |
+| 17 | Action Items | 邮件详情页显示提取的行动项，可标记完成 |
+
+### 第五阶段验收：生产部署
+
+| 序号 | 验收项 | 通过标准 |
+|------|--------|---------|
+| 18 | Docker部署 | `docker-compose up -d` 一键启动全部服务 |
+| 19 | HTTPS访问 | 通过Nginx提供HTTPS访问 |
+| 20 | 安全审计 | 无明文密钥、API限流生效、日志可追溯 |
 
 ---
 
-*文档版本：v1.1*
-*最后更新：2026-04-18*
+## 5. 风险评估
+
+### Steam方向特有风险
+
+| 风险项 | 影响 | 概率 | 缓解措施 |
+|--------|------|------|----------|
+| Steam邮件HTML模板频繁变动 | 高 | 中 | LLM容错 + 多模板适配策略 |
+| Steam Web API限流 | 中 | 低 | 本地缓存24h、批量定时同步 |
+| 游戏元数据缺失 | 中 | 中 | Steam Store API + 多源补全（IGDB） |
+| 用户无Steam账号 | 高 | 低 | 不影响原有邮件分类功能 |
+| Steam邮件数量不足 | 中 | 中 | 支持关注Curator获取更多资讯 |
+| 推荐同质化 | 低 | 中 | 多样性策略 + 惊喜推荐机制 |
+
+### 通用技术风险
+
+| 风险项 | 影响 | 缓解措施 |
+|--------|------|----------|
+| 126邮箱API限制 | 中 | 标准IMAP协议，控制请求频率 |
+| LLM服务不稳定 | 中 | 多Provider自动切换 |
+| 凭证泄露 | 高 | AES-256-GCM加密，密钥隔离管理 |
+| 数据丢失 | 中 | 定期备份MySQL数据 |
+
+---
+
+*文档版本：v2.0*
+*最后更新：2026-04-21*

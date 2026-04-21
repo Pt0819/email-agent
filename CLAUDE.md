@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-个人邮件智能分类汇总 Agent 系统，支持网易126邮箱，三端独立架构。
+Steam游戏资讯智能推荐平台，基于126邮箱的Steam邮件解析，结合用户游玩偏好进行个性化游戏推荐。三端独立架构（Go/Python/React）。
 
 ## 项目结构
 
@@ -15,7 +15,9 @@ mail-agent/
 ├── email-web/         # React前端 (用户界面)
 ├── docs/              # 项目文档
 │   ├── DESIGN.md     # 设计文档
-│   └── REQUIREMENTS.md # 需求文档
+│   ├── REQUIREMENTS.md # 需求文档
+│   ├── DEVELOPMENT-PLAN.md # 开发计划（核心文档）
+│   └── STEAM-RECOMMENDATION-FEASIBILITY.md # Steam可行性分析
 ├── .claude/skills/    # 开发Skills (AI专用规范)
 └── sql/               # 数据库脚本
 ```
@@ -69,10 +71,16 @@ cd email-web && npm run dev
 ## 当前开发阶段
 
 - [x] Phase 1: 项目基础搭建
-- [x] Phase 2: 126邮箱接入 (结构就绪，待实现Provider)
-- [x] Phase 3: 服务端API (Clean Architecture结构完成)
-- [ ] Phase 4: Agent开发
-- [ ] Phase 5: 前端开发
+- [x] Phase 2: 126邮箱接入（已通过实际邮箱测试）
+- [x] Phase 3: 服务端API（Clean Architecture完成）
+- [x] Phase 4: Agent分类/提取/摘要（智谱GLM/DeepSeek集成）
+- [x] Phase 5: React前端核心页面
+- [ ] **Phase 6: Steam游戏推荐系统（核心方向）**
+  - [ ] 6.1 Steam邮件解析（P0）
+  - [ ] 6.2 Steam数据集成（P0）
+  - [ ] 6.3 用户偏好分析（P0）
+  - [ ] 6.4 智能游戏推荐（P0）
+  - [ ] 6.5 推荐反馈闭环（P1）
 
 ## email-backend 项目结构 (Clean Architecture)
 
