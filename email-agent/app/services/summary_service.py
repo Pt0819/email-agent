@@ -7,7 +7,6 @@ from typing import List, Dict, Any
 
 from app.services.base_service import BaseService
 from app.schemas import DailySummaryResponse, EmailSummary, ActionItem
-from app.llm import get_llm_manager
 from app.prompts.summary import (
     get_system_prompt, get_user_prompt, parse_summary_result
 )
@@ -36,6 +35,8 @@ class SummaryService(BaseService):
         self.log_info(f"开始生成每日摘要: {date}, 邮件数: {len(emails_data)}")
 
         try:
+            # 获取LLM Manager（延迟导入避免循环依赖）
+            from app.llm import get_llm_manager
             llm_manager = get_llm_manager()
 
             if not llm_manager.is_available():

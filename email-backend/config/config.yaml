@@ -20,7 +20,7 @@ redis:
   db: 0
 
 agent:
-  url: http://localhost:8001
+  url: http://localhost:9111
   api_key: ""
   timeout: 60
 
