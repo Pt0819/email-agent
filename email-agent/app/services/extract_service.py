@@ -9,7 +9,6 @@ from app.schemas import (
     ExtractRequest, ExtractResponse, ExtractionResult,
     ActionItem, MeetingInfo, KeyEntities
 )
-from app.llm import get_llm_manager
 from app.prompts.extraction import (
     get_system_prompt, get_user_prompt, parse_extraction_result
 )
@@ -35,6 +34,8 @@ class ExtractService(BaseService):
         self.log_info(f"开始提取邮件信息: {request.email_id}")
 
         try:
+            # 获取LLM Manager（延迟导入避免循环依赖）
+            from app.llm import get_llm_manager
             llm_manager = get_llm_manager()
 
             if not llm_manager.is_available():

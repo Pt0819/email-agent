@@ -8,7 +8,6 @@ from app.services.base_service import BaseService
 from app.schemas import (
     ClassifyRequest, ClassifyResponse, ClassificationResult
 )
-from app.llm import get_llm_manager
 from app.prompts.classification import (
     get_system_prompt, get_user_prompt, parse_classification_result
 )
@@ -34,7 +33,8 @@ class ClassifyService(BaseService):
         self.log_info(f"开始分类邮件: {request.email_id}")
 
         try:
-            # 获取LLM Manager
+            # 获取LLM Manager（延迟导入避免循环依赖）
+            from app.llm import get_llm_manager
             llm_manager = get_llm_manager()
 
             if not llm_manager.is_available():
