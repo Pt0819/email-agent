@@ -14,7 +14,7 @@ import (
 )
 
 // Setup 路由设置
-func Setup(r *gin.Engine, cfg *config.Config) {
+func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 	// 全局中间件
 	r.Use(middleware.CORS())
 	r.Use(middleware.Logger())
@@ -29,9 +29,13 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 	// 创建Repository
 	emailRepo := repository.NewEmailRepository(global.DB())
 	userRepo := repository.NewUserRepository(global.DB())
+	accountRepo := repository.NewAccountRepository(global.DB())
 
 	// 创建Service
 	userService := service.NewUserService(userRepo)
+
+	// 创建同步调度器
+	scheduler := service.NewSyncScheduler(accountRepo, emailRepo, agentClient)
 
 	// JWT中间件
 	jwtAuth := middleware.JWTAuth(userService)
@@ -55,11 +59,13 @@ func Setup(r *gin.Engine, cfg *config.Config) {
 			// 账户路由
 			v1.SetupAccountRoutes(protected)
 
-			// 同步路由
-			v1.SetupSyncRoutes(protected, agentClient)
+			// 同步路由（传入调度器）
+			v1.SetupSyncRoutes(protected, agentClient, scheduler)
 
 			// 摘要路由
 			v1.SetupSummaryRoutes(protected, agentClient, emailRepo)
 		}
 	}
+
+	return scheduler
 }

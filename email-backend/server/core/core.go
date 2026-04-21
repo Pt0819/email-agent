@@ -22,6 +22,21 @@ var (
 	GlobalEncryptor *crypto.CredentialEncryptor
 )
 
+// Config 返回全局配置
+func Config() *config.Config {
+	return GlobalConfig
+}
+
+// DB 返回全局数据库连接
+func DB() *gorm.DB {
+	return GlobalDB
+}
+
+// Encryptor 返回全局加密器
+func Encryptor() *crypto.CredentialEncryptor {
+	return GlobalEncryptor
+}
+
 // InitConfig 初始化配置
 func InitConfig(configPath string) error {
 	cfg, err := config.LoadConfig(configPath)
