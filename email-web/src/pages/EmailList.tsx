@@ -86,16 +86,15 @@ export default function EmailList() {
   }, [fetchEmails]);
 
   // 处理分类
-  const handleClassify = async (id: string) => {
+  const handleClassify = async (id: string | number) => {
     try {
-      await emailApi.classify(id);
-      fetchEmails(); // 刷新列表
+      await emailApi.classify(Number(id));
+      fetchEmails();
     } catch (err) {
       setError(err instanceof Error ? err.message : '分类失败');
     }
   };
 
-  // 处理查看详情
   const handleView = (email: Email) => {
     navigate(`/emails/${email.id}`);
   };

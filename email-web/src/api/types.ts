@@ -11,7 +11,6 @@ export interface PageData<T = unknown> {
   total: number;
   page: number;
   page_size: number;
-  total_pages: number;
 }
 
 // ==================== 认证类型 ====================
@@ -58,21 +57,27 @@ export type EmailPriority = 'critical' | 'high' | 'medium' | 'low';
 export type EmailStatus = 'unread' | 'read' | 'processed' | 'archived';
 
 export interface Email {
-  id: string;
+  id: number;
   message_id: string;
-  subject: string;
+  user_id: number;
+  account_id: number;
   sender_name: string;
   sender_email: string;
+  subject: string;
   content: string;
   content_html?: string;
+  content_type?: string;
   category: EmailCategory;
   priority: EmailPriority;
   confidence: number;
   reasoning?: string;
   status: EmailStatus;
+  is_processed?: boolean;
   has_attachment: boolean;
   received_at: string;
+  processed_at?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface EmailListParams {
@@ -92,11 +97,11 @@ export interface EmailAccount {
   id: number;
   user_id: number;
   provider: EmailProvider;
-  email: string; // API返回的是email字段
-  account_email?: string; // 兼容旧字段
+  account_email: string; // 后端返回的字段名
   last_sync_at?: string;
   sync_enabled: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CreateAccountRequest {
@@ -116,23 +121,75 @@ export interface ClassificationResult {
 
 export interface ClassifyResponse {
   email_id: string;
-  classification: ClassificationResult;
-  processed_at: string;
+  category: EmailCategory;
+  priority: EmailPriority;
+  confidence: number;
+  reasoning: string;
 }
 
 // ==================== 同步类型 ====================
 
-export interface SyncStatus {
-  last_sync: string;
-  status: 'idle' | 'syncing' | 'error';
-  account_id?: number;
-  progress?: number;
-  total?: number;
+export interface SyncResult {
+  account_id: number;
+  account_email: string;
+  success: boolean;
+  message: string;
+  total_count: number;
+  synced_count: number;
+  error_count: number;
+  classified_count: number;
+  synced_at: string;
 }
 
 export interface SyncResponse {
-  task_id: string;
   status: string;
+  all_success: boolean;
+  results: SyncResult[];
+}
+
+export interface SyncStatusData {
+  accounts: EmailAccount[];
+  last_sync?: string;
+}
+
+// ==================== 调度器类型 ====================
+
+export interface SchedulerStatus {
+  running: boolean;
+  interval: number; // 分钟
+  last_sync_time?: string;
+  sync_count: number;
+  error_count: number;
+  next_sync_time?: string;
+}
+
+export interface SetIntervalRequest {
+  interval: number; // 分钟，1-1440
+}
+
+// ==================== 每日摘要类型 ====================
+
+export interface ImportantEmail {
+  email_id: string;
+  subject: string;
+  sender: string;
+  category: string;
+  priority: string;
+  summary: string;
+}
+
+export interface ActionItemSummary {
+  task: string;
+  priority: string;
+}
+
+export interface DailySummary {
+  date: string;
+  total_emails: number;
+  by_category: Record<string, number>;
+  important_emails: ImportantEmail[];
+  action_items: ActionItemSummary[];
+  summary_text: string;
 }
 
 // ==================== 分类映射 ====================
@@ -189,7 +246,6 @@ export const FILTERS = {
   statuses: [
     { value: 'unread' as const, label: '未读' },
     { value: 'read' as const, label: '已读' },
-    { value: 'processed' as const, label: '已处理' },
     { value: 'archived' as const, label: '已归档' },
   ],
 };
