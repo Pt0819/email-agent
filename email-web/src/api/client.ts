@@ -8,8 +8,11 @@ import type {
   EmailAccount,
   CreateAccountRequest,
   ClassifyResponse,
-  SyncStatus,
+  SyncStatusData,
   SyncResponse,
+  SchedulerStatus,
+  SetIntervalRequest,
+  DailySummary,
 } from './types';
 
 // 创建axios实例
@@ -58,16 +61,20 @@ export const emailApi = {
     apiClient.get<ApiResponse<PageData<Email>>>('/emails', { params }),
 
   /** 获取邮件详情 */
-  getById: (id: string) =>
+  getById: (id: number) =>
     apiClient.get<ApiResponse<Email>>(`/emails/${id}`),
 
   /** 分类邮件 */
-  classify: (id: string) =>
+  classify: (id: number) =>
     apiClient.post<ApiResponse<ClassifyResponse>>(`/emails/${id}/classify`),
 
   /** 更新邮件状态 */
-  updateStatus: (id: string, status: string) =>
-    apiClient.put<ApiResponse<{ id: string; status: string }>>(`/emails/${id}/status`, { status }),
+  updateStatus: (id: number, status: string) =>
+    apiClient.put<ApiResponse<{ id: number; status: string }>>(`/emails/${id}/status`, { status }),
+
+  /** 删除邮件 */
+  delete: (id: number) =>
+    apiClient.delete<ApiResponse<null>>(`/emails/${id}`),
 };
 
 // ==================== 账户API ====================
@@ -87,7 +94,7 @@ export const accountApi = {
 
   /** 测试账户连接 */
   test: (id: number) =>
-    apiClient.post<ApiResponse<{ status: string; message: string }>>(`/accounts/${id}/test`),
+    apiClient.post<ApiResponse<{ id: number; success: boolean; message: string }>>(`/accounts/${id}/test`),
 };
 
 // ==================== 同步API ====================
@@ -99,7 +106,33 @@ export const syncApi = {
 
   /** 获取同步状态 */
   status: () =>
-    apiClient.get<ApiResponse<SyncStatus>>('/sync/status'),
+    apiClient.get<ApiResponse<SyncStatusData>>('/sync/status'),
+
+  // ========== 调度器控制 ==========
+
+  /** 启动调度器 */
+  startScheduler: () =>
+    apiClient.post<ApiResponse<{ message: string }>>('/sync/scheduler/start'),
+
+  /** 停止调度器 */
+  stopScheduler: () =>
+    apiClient.post<ApiResponse<{ message: string }>>('/sync/scheduler/stop'),
+
+  /** 获取调度器状态 */
+  schedulerStatus: () =>
+    apiClient.get<ApiResponse<SchedulerStatus>>('/sync/scheduler/status'),
+
+  /** 设置同步间隔 */
+  setInterval: (data: SetIntervalRequest) =>
+    apiClient.put<ApiResponse<{ message: string; interval: number }>>('/sync/scheduler/interval', data),
+};
+
+// ==================== 摘要API ====================
+
+export const summaryApi = {
+  /** 获取每日摘要 */
+  daily: (date?: string) =>
+    apiClient.get<ApiResponse<DailySummary>>('/summary/daily', { params: { date } }),
 };
 
 export default apiClient;

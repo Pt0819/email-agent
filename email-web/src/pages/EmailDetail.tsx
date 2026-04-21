@@ -36,7 +36,7 @@ export default function EmailDetail() {
   const fetchEmailDetail = async (emailId: string) => {
     try {
       setLoading(true);
-      const response = await emailApi.getById(emailId);
+      const response = await emailApi.getById(Number(emailId));
       setEmail(response as unknown as Email);
       setError(null);
     } catch (err) {
@@ -51,7 +51,7 @@ export default function EmailDetail() {
     try {
       setClassifying(true);
       await emailApi.classify(email.id);
-      await fetchEmailDetail(email.id);
+      await fetchEmailDetail(String(email.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : '分类失败');
     } finally {

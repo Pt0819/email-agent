@@ -4,7 +4,7 @@ import { Mail, User, Clock, Paperclip, Eye } from 'lucide-react';
 
 interface EmailCardProps {
   email: Email;
-  onClassify?: (id: string) => void;
+  onClassify?: (id: string | number) => void;
   onView?: (email: Email) => void;
 }
 
