@@ -35,6 +35,8 @@ func main() {
 		&model.Email{},
 		&model.EmailAccount{},
 		&model.ActionItem{},
+		&model.SteamGame{},
+		&model.SteamDeal{},
 	); err != nil {
 		log.Printf("警告: 自动迁移失败: %v", err)
 	}

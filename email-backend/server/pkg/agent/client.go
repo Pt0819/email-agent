@@ -223,6 +223,79 @@ func (c *Client) Extract(ctx context.Context, req *ExtractRequest) (*ExtractResp
 	return &result, nil
 }
 
+// SteamExtractRequest Steam信息提取请求
+type SteamExtractRequest struct {
+	EmailID     string `json:"email_id"`
+	Subject     string `json:"subject"`
+	SenderEmail string `json:"sender_email"`
+	Content     string `json:"content"`
+	ContentHTML string `json:"content_html,omitempty"`
+}
+
+// SteamGameInfo 提取的Steam游戏信息
+type SteamGameInfo struct {
+	AppID         string   `json:"app_id"`
+	Name          string   `json:"name"`
+	Genre         string   `json:"genre"`
+	Tags          []string `json:"tags"`
+	CoverURL      string   `json:"cover_url"`
+	StoreURL      string   `json:"store_url"`
+	HasDeal       bool     `json:"has_deal"`
+	OriginalPrice float64  `json:"original_price"`
+	DealPrice     float64  `json:"deal_price"`
+	Discount      int      `json:"discount"`
+	DealEnd       string   `json:"deal_end,omitempty"`
+}
+
+// SteamExtractResponse Steam提取响应
+type SteamExtractResponse struct {
+	EmailID     string          `json:"email_id"`
+	Games       []SteamGameInfo `json:"games"`
+	ProcessedAt string          `json:"processed_at"`
+}
+
+// SteamExtract 调用Agent提取Steam游戏信息
+func (c *Client) SteamExtract(ctx context.Context, req *SteamExtractRequest) (*SteamExtractResponse, error) {
+	url := c.baseURL + "/api/v1/steam/extract"
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("X-API-Key", c.apiKey)
+	}
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求Agent失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Agent返回错误: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	var result SteamExtractResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return &result, nil
+}
+
 // Health 检查Agent健康状态
 func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
 	url := c.baseURL + "/api/v1/health"

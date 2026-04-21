@@ -50,6 +50,10 @@ export type EmailCategory =
   | 'notification'
   | 'promotion'
   | 'spam'
+  | 'steam_promotion'
+  | 'steam_wishlist'
+  | 'steam_news'
+  | 'steam_update'
   | 'unclassified';
 
 export type EmailPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -203,6 +207,10 @@ export const CATEGORY_LABELS: Record<EmailCategory, string> = {
   notification: '系统通知',
   promotion: '营销推广',
   spam: '垃圾邮件',
+  steam_promotion: 'Steam促销',
+  steam_wishlist: 'Steam愿望单',
+  steam_news: 'Steam资讯',
+  steam_update: 'Steam更新',
   unclassified: '未分类',
 };
 
@@ -214,6 +222,10 @@ export const CATEGORY_COLORS: Record<EmailCategory, string> = {
   notification: 'bg-gray-100 text-gray-800 border-gray-200',
   promotion: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   spam: 'bg-pink-100 text-pink-800 border-pink-200',
+  steam_promotion: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  steam_wishlist: 'bg-teal-100 text-teal-800 border-teal-200',
+  steam_news: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  steam_update: 'bg-sky-100 text-sky-800 border-sky-200',
   unclassified: 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
@@ -242,6 +254,10 @@ export const FILTERS = {
     { value: 'notification' as const, label: '系统通知' },
     { value: 'promotion' as const, label: '营销推广' },
     { value: 'spam' as const, label: '垃圾邮件' },
+    { value: 'steam_promotion' as const, label: 'Steam促销' },
+    { value: 'steam_wishlist' as const, label: 'Steam愿望单' },
+    { value: 'steam_news' as const, label: 'Steam资讯' },
+    { value: 'steam_update' as const, label: 'Steam更新' },
     { value: 'unclassified' as const, label: '未分类' },
   ],
   statuses: [
@@ -250,3 +266,45 @@ export const FILTERS = {
     { value: 'archived' as const, label: '已归档' },
   ],
 };
+
+// ==================== Steam类型 ====================
+
+export interface SteamGame {
+  id: number;
+  user_id: number;
+  game_name: string;
+  game_id: string;
+  developer: string;
+  publisher: string;
+  genre: string;
+  tags: string; // JSON字符串
+  cover_url: string;
+  store_url: string;
+  playtime: number;
+  is_owned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SteamDeal {
+  id: number;
+  user_id: number;
+  game_id: string;
+  game_name: string;
+  original_price: number;
+  deal_price: number;
+  discount: number;
+  cover_url: string;
+  store_url: string;
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  email_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SteamStats {
+  total_games: number;
+  active_deals: number;
+}

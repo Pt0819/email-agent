@@ -62,14 +62,18 @@ type ActionItemSummary struct {
 
 // 分类中文标签映射
 var categoryLabels = map[string]string{
-	"work_urgent":  "紧急工作",
-	"work_normal":  "普通工作",
-	"personal":     "个人邮件",
-	"subscription": "订阅邮件",
-	"notification": "系统通知",
-	"promotion":    "营销推广",
-	"spam":         "垃圾邮件",
-	"unclassified": "未分类",
+	"work_urgent":      "紧急工作",
+	"work_normal":      "普通工作",
+	"personal":         "个人邮件",
+	"subscription":     "订阅邮件",
+	"notification":     "系统通知",
+	"promotion":        "营销推广",
+	"spam":             "垃圾邮件",
+	"steam_promotion":  "Steam促销",
+	"steam_wishlist":   "Steam愿望单",
+	"steam_news":       "Steam资讯",
+	"steam_update":     "Steam更新",
+	"unclassified":     "未分类",
 }
 
 // DailySummary 获取每日摘要
