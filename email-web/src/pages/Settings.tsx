@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { accountApi, syncApi } from '../api/client';
-import type { EmailAccount, CreateAccountRequest, EmailProvider, SchedulerStatus } from '../api/types';
+import type { EmailAccount, EmailProvider, SchedulerStatus } from '../api/types';
 import {
   Plus, Trash2, TestTube, CheckCircle, XCircle, AlertCircle,
   Loader2, Play, Pause, Clock, Settings, RefreshCw,
@@ -115,7 +115,7 @@ export default function SettingsPage() {
   };
 
   // 获取账户显示邮箱（兼容字段名）
-  const getEmail = (a: EmailAccount) => a.account_email || (a as Record<string, unknown>).email as string || '';
+  const getEmail = (a: EmailAccount) => a.account_email || '';
 
   return (
     <div className="space-y-6">

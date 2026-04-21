@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { emailApi, syncApi } from '../api/client';
-import type { Email, EmailCategory } from '../api/types';
+import { emailApi, syncApi, summaryApi } from '../api/client';
+import type { Email, EmailCategory, DailySummary } from '../api/types';
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../api/types';
 import {
   Mail,
@@ -12,6 +12,9 @@ import {
   Inbox,
   ArrowRight,
   Bot,
+  CheckCircle,
+  ListTodo,
+  Sparkles,
 } from 'lucide-react';
 
 interface Stats {
@@ -41,6 +44,7 @@ export default function Dashboard() {
   const [urgentEmails, setUrgentEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
 
   // 获取统计数据
   const fetchStats = useCallback(async () => {
@@ -104,9 +108,20 @@ export default function Dashboard() {
     }
   }, []);
 
+  // 获取每日摘要
+  const fetchDailySummary = useCallback(async () => {
+    try {
+      const response = await summaryApi.daily();
+      setDailySummary(response as unknown as DailySummary);
+    } catch (err) {
+      console.error('获取每日摘要失败:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
+    fetchDailySummary();
+  }, [fetchStats, fetchDailySummary]);
 
   // 处理同步
   const handleSync = async () => {
@@ -115,6 +130,7 @@ export default function Dashboard() {
       await syncApi.trigger();
       setTimeout(() => {
         fetchStats();
+        fetchDailySummary();
         setSyncing(false);
       }, 3000);
     } catch (err) {
@@ -135,7 +151,7 @@ export default function Dashboard() {
     },
     {
       title: '今日新增',
-      value: stats.today,
+      value: dailySummary?.total_emails ?? stats.today,
       icon: <TrendingUp className="w-6 h-6" />,
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
@@ -223,6 +239,81 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* AI每日摘要 */}
+      {dailySummary && (
+        <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-200 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-6 h-6 text-primary-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                AI 每日摘要
+              </h2>
+              <p className="text-gray-700 leading-relaxed">
+                {dailySummary.summary_text}
+              </p>
+              {dailySummary.important_emails.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    重要邮件
+                  </h3>
+                  <div className="space-y-2">
+                    {dailySummary.important_emails.slice(0, 3).map((email) => (
+                      <Link
+                        key={email.email_id}
+                        to={`/emails/${email.email_id}`}
+                        className="block p-3 bg-white rounded-lg border border-gray-200 hover:border-primary-300 hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {email.subject}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {email.sender}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-0.5 text-xs rounded-full border ${
+                            email.priority === 'critical'
+                              ? 'bg-red-100 text-red-800 border-red-200'
+                              : 'bg-orange-100 text-orange-800 border-orange-200'
+                          }`}>
+                            {email.priority === 'critical' ? '紧急' : '高优先'}
+                          </span>
+                        </div>
+                        {email.summary && (
+                          <p className="text-xs text-gray-600 mt-1 line-clamp-1">
+                            {email.summary}
+                          </p>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {dailySummary.action_items.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                    <ListTodo className="w-4 h-4 text-blue-500" />
+                    待办事项
+                  </h3>
+                  <div className="space-y-1">
+                    {dailySummary.action_items.slice(0, 5).map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                        <CheckCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span>{item.task}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 分类统计 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
