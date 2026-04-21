@@ -80,7 +80,7 @@ export default function FilterBar({
               <option value="all">全部账户</option>
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.email || acc.account_email}
+                  {acc.account_email}
                 </option>
               ))}
             </select>

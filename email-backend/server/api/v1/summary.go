@@ -24,10 +24,7 @@ type SummaryHandler struct {
 
 // NewSummaryHandler 创建摘要处理器
 func NewSummaryHandler(emailRepo *repository.EmailRepository, agentClient *agent.Client) *SummaryHandler {
-	return &SummaryHandler{
-		emailRepo:   emailRepo,
-		agentClient: agentClient,
-	}
+	return &SummaryHandler{emailRepo: emailRepo, agentClient: agentClient}
 }
 
 // SetupSummaryRoutes 注册摘要路由
@@ -41,6 +38,7 @@ type DailySummaryResponse struct {
 	Date            string              `json:"date"`
 	TotalEmails     int                 `json:"total_emails"`
 	ByCategory      map[string]int      `json:"by_category"`
+	CategoryLabels  map[string]string   `json:"category_labels"`
 	ImportantEmails []ImportantEmail    `json:"important_emails"`
 	ActionItems     []ActionItemSummary `json:"action_items"`
 	SummaryText     string              `json:"summary_text"`
@@ -62,19 +60,31 @@ type ActionItemSummary struct {
 	Priority string `json:"priority"`
 }
 
+// 分类中文标签映射
+var categoryLabels = map[string]string{
+	"work_urgent":  "紧急工作",
+	"work_normal":  "普通工作",
+	"personal":     "个人邮件",
+	"subscription": "订阅邮件",
+	"notification": "系统通知",
+	"promotion":    "营销推广",
+	"spam":         "垃圾邮件",
+	"unclassified": "未分类",
+}
+
 // DailySummary 获取每日摘要
 func (h *SummaryHandler) DailySummary(c *gin.Context) {
-	// 解析日期参数
 	dateStr := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
-
-	// TODO: 从JWT获取用户ID
 	userID := middleware.GetUserID(c)
 
-	// 使用List方法获取所有邮件（后续按日期过滤）
+	// 获取用户当天邮件
+	startTime, _ := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	endTime := startTime.Add(24 * time.Hour)
+
 	emailReq := &emailRequest.ListRequest{
 		UserID:   userID,
 		Page:     1,
-		PageSize: 100,
+		PageSize: 200,
 	}
 	allEmails, _, err := h.emailRepo.List(c.Request.Context(), emailReq)
 	if err != nil {
@@ -83,9 +93,6 @@ func (h *SummaryHandler) DailySummary(c *gin.Context) {
 	}
 
 	// 按日期过滤
-	startTime, _ := time.ParseInLocation("2006-01-02", dateStr, time.Local)
-	endTime := startTime.Add(24 * time.Hour)
-
 	var emails []*model.Email
 	for _, e := range allEmails {
 		if e.ReceivedAt.After(startTime) && e.ReceivedAt.Before(endTime) {
@@ -93,33 +100,31 @@ func (h *SummaryHandler) DailySummary(c *gin.Context) {
 		}
 	}
 
-	// 如果没有邮件，返回空摘要
-	if len(emails) == 0 {
-		success(c, DailySummaryResponse{
-			Date:            dateStr,
-			TotalEmails:     0,
-			ByCategory:      make(map[string]int),
-			ImportantEmails: []ImportantEmail{},
-			ActionItems:     []ActionItemSummary{},
-			SummaryText:     "今日无邮件",
-		})
-		return
+	// 本地统计（始终生成）
+	summary := h.buildLocalSummary(dateStr, emails)
+
+	// 尝试调用Agent生成AI摘要（失败时降级为本地摘要）
+	if h.agentClient != nil && len(emails) > 0 {
+		h.enrichWithAI(c, &summary, emails)
 	}
 
-	// 生成本地摘要（后续可接入Agent进行AI摘要）
-	h.respondLocalSummary(c, dateStr, emails)
+	success(c, summary)
 }
 
-// respondLocalSummary 返回本地生成的摘要
-func (h *SummaryHandler) respondLocalSummary(c *gin.Context, dateStr string, emails []*model.Email) {
+// buildLocalSummary 生成本地统计摘要
+func (h *SummaryHandler) buildLocalSummary(dateStr string, emails []*model.Email) DailySummaryResponse {
 	byCategory := make(map[string]int)
+	labels := make(map[string]string)
 	var importantEmails []ImportantEmail
 	var actionItems []ActionItemSummary
 
 	for _, email := range emails {
 		byCategory[email.Category]++
+		if label, ok := categoryLabels[email.Category]; ok {
+			labels[email.Category] = label
+		}
 
-		// 紧急和高优先级邮件标记为重要
+		// 紧急和高优先级邮件
 		if email.Priority == "critical" || email.Priority == "high" {
 			importantEmails = append(importantEmails, ImportantEmail{
 				EmailID:  strconv.FormatInt(email.ID, 10),
@@ -127,11 +132,11 @@ func (h *SummaryHandler) respondLocalSummary(c *gin.Context, dateStr string, ema
 				Sender:   email.SenderName,
 				Category: email.Category,
 				Priority: email.Priority,
-				Summary:  email.Subject,
+				Summary:  email.Reasoning,
 			})
 		}
 
-		// work_urgent类别的邮件添加为行动项
+		// 紧急工作类别添加行动项
 		if email.Category == "work_urgent" {
 			actionItems = append(actionItems, ActionItemSummary{
 				Task:     email.Subject,
@@ -140,17 +145,102 @@ func (h *SummaryHandler) respondLocalSummary(c *gin.Context, dateStr string, ema
 		}
 	}
 
+	// 生成摘要文本
 	summaryText := fmt.Sprintf("今日共收到%d封邮件", len(emails))
 	for cat, count := range byCategory {
-		summaryText += fmt.Sprintf("，%s:%d封", cat, count)
+		label := categoryLabels[cat]
+		if label == "" {
+			label = cat
+		}
+		summaryText += fmt.Sprintf("，%s%d封", label, count)
 	}
 
-	success(c, DailySummaryResponse{
+	if len(emails) == 0 {
+		summaryText = "今日暂无邮件"
+	}
+
+	return DailySummaryResponse{
 		Date:            dateStr,
 		TotalEmails:     len(emails),
 		ByCategory:      byCategory,
+		CategoryLabels:  labels,
 		ImportantEmails: importantEmails,
 		ActionItems:     actionItems,
 		SummaryText:     summaryText,
-	})
+	}
+}
+
+// enrichWithAI 调用Agent生成AI摘要，增强本地摘要
+func (h *SummaryHandler) enrichWithAI(c *gin.Context, summary *DailySummaryResponse, emails []*model.Email) {
+	// 构建邮件数据传给Agent
+	emailsData := make([]map[string]interface{}, 0, len(emails))
+	emailIDs := make([]string, 0, len(emails))
+	for _, e := range emails {
+		emailIDs = append(emailIDs, strconv.FormatInt(e.ID, 10))
+		emailsData = append(emailsData, map[string]interface{}{
+			"email_id":     strconv.FormatInt(e.ID, 10),
+			"subject":      e.Subject,
+			"sender_name":  e.SenderName,
+			"sender_email": e.SenderEmail,
+			"category":     e.Category,
+			"priority":     e.Priority,
+			"content":      truncateContent(e.Content, 200),
+		})
+	}
+
+	req := &agent.SummaryRequest{
+		EmailIDs:   emailIDs,
+		EmailsData: emailsData,
+		Date:       summary.Date,
+	}
+
+	resp, err := h.agentClient.Summary(c.Request.Context(), req)
+	if err != nil {
+		// Agent调用失败，保持本地摘要不变
+		fmt.Printf("AI摘要生成失败(降级为本地摘要): %v\n", err)
+		return
+	}
+
+	// 用AI结果增强摘要
+	if resp.SummaryText != "" {
+		summary.SummaryText = resp.SummaryText
+	}
+
+	// 合并AI返回的重要邮件（保留本地+AI的并集）
+	if len(resp.ImportantEmails) > 0 {
+		existingIDs := make(map[string]bool)
+		for _, ie := range summary.ImportantEmails {
+			existingIDs[ie.EmailID] = true
+		}
+		for _, ie := range resp.ImportantEmails {
+			if !existingIDs[ie.EmailID] {
+				summary.ImportantEmails = append(summary.ImportantEmails, ImportantEmail{
+					EmailID:  ie.EmailID,
+					Subject:  ie.Subject,
+					Sender:   ie.Sender,
+					Category: ie.Category,
+					Priority: ie.Priority,
+					Summary:  ie.Summary,
+				})
+			}
+		}
+	}
+
+	// 合并AI返回的行动项
+	if len(resp.ActionItems) > 0 {
+		for _, ai := range resp.ActionItems {
+			summary.ActionItems = append(summary.ActionItems, ActionItemSummary{
+				Task:     ai.Task,
+				Priority: ai.Priority,
+			})
+		}
+	}
+}
+
+// truncateContent 截断邮件内容
+func truncateContent(content string, maxLen int) string {
+	if len(content) <= maxLen {
+		return content
+	}
+	return content[:maxLen] + "..."
 }

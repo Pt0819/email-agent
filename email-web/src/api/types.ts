@@ -187,6 +187,7 @@ export interface DailySummary {
   date: string;
   total_emails: number;
   by_category: Record<string, number>;
+  category_labels: Record<string, string>;
   important_emails: ImportantEmail[];
   action_items: ActionItemSummary[];
   summary_text: string;

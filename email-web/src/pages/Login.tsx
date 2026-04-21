@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/authApi';
-import type { User } from '../api/types';
 import { Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
@@ -34,7 +33,7 @@ export default function Login() {
         const response = await authApi.login({
           email: form.email,
           password: form.password,
-        });
+        }) as unknown as { code: number; message: string; data: { token: string; user: object } };
 
         if (response.code === 0 && response.data) {
           localStorage.setItem('token', response.data.token);
@@ -55,7 +54,7 @@ export default function Login() {
           username: form.username,
           email: form.email,
           password: form.password,
-        });
+        }) as unknown as { code: number; message: string; data: { token: string; user: object } };
 
         if (response.code === 0 && response.data) {
           localStorage.setItem('token', response.data.token);
