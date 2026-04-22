@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Gamepad2, ArrowUpDown } from 'lucide-react';
-import { steamApi } from '../../api/steamApi';
-import DealCard from '../../components/steam/DealCard';
-import Pagination from '../../components/ui/Pagination';
-import type { SteamDeal, SteamStats } from '../../api/types';
+import { steamApi } from '../api/steamApi';
+import DealCard from '../components/steam/DealCard';
+import Pagination from '../components/ui/Pagination';
+import type { SteamDeal, SteamStats } from '../api/types';
 
 type SortOption = 'created_at' | 'discount' | 'price_asc' | 'price_desc' | 'end_date';
 
@@ -162,8 +162,9 @@ export default function SteamDeals() {
           {/* 分页 */}
           {totalPages > 1 && (
             <Pagination
-              currentPage={page}
-              totalPages={totalPages}
+              current={page}
+              total={total}
+              pageSize={pageSize}
               onPageChange={setPage}
             />
           )}

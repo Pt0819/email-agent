@@ -20,6 +20,141 @@ func NewSteamRepository(db *gorm.DB) *SteamRepository {
 	return &SteamRepository{db: db}
 }
 
+// ==================== Account 操作 ====================
+
+// FindAccountByUserID 根据用户ID查找Steam账号
+func (r *SteamRepository) FindAccountByUserID(ctx context.Context, userID int64) (*model.SteamAccount, error) {
+	var account model.SteamAccount
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND is_active = ?", userID, true).
+		First(&account).Error
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+// CreateAccount 创建Steam账号绑定
+func (r *SteamRepository) CreateAccount(ctx context.Context, account *model.SteamAccount) error {
+	return r.db.WithContext(ctx).Create(account).Error
+}
+
+// UpdateAccount 更新Steam账号信息
+func (r *SteamRepository) UpdateAccount(ctx context.Context, account *model.SteamAccount) error {
+	return r.db.WithContext(ctx).Save(account).Error
+}
+
+// DeleteAccount 软删除Steam账号
+func (r *SteamRepository) DeleteAccount(ctx context.Context, userID int64) error {
+	return r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Delete(&model.SteamAccount{}).Error
+}
+
+// ==================== Library 操作 ====================
+
+// UpsertLibraryItem 创建或更新游戏库条目
+func (r *SteamRepository) UpsertLibraryItem(ctx context.Context, item *model.SteamLibraryItem) error {
+	var existing model.SteamLibraryItem
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND account_id = ? AND game_id = ?", item.UserID, item.AccountID, item.GameID).
+		First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return r.db.WithContext(ctx).Create(item).Error
+	}
+	if err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
+		"game_name":        item.GameName,
+		"playtime":         item.Playtime,
+		"playtime_2_weeks": item.Playtime2Weeks,
+		"last_played_at":   item.LastPlayedAt,
+		"icon_url":         item.IconURL,
+	}).Error
+}
+
+// BatchUpsertLibraryItems 批量创建或更新游戏库
+func (r *SteamRepository) BatchUpsertLibraryItems(ctx context.Context, items []*model.SteamLibraryItem) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range items {
+			var existing model.SteamLibraryItem
+			err := tx.Where("user_id = ? AND account_id = ? AND game_id = ?",
+				item.UserID, item.AccountID, item.GameID).First(&existing).Error
+
+			if err == gorm.ErrRecordNotFound {
+				if err := tx.Create(item).Error; err != nil {
+					return err
+				}
+			} else if err != nil {
+				return err
+			} else {
+				if err := tx.Model(&existing).Updates(map[string]interface{}{
+					"game_name":        item.GameName,
+					"playtime":         item.Playtime,
+					"playtime_2_weeks": item.Playtime2Weeks,
+					"last_played_at":   item.LastPlayedAt,
+					"icon_url":         item.IconURL,
+				}).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// ListLibraryByUser 分页获取用户游戏库
+func (r *SteamRepository) ListLibraryByUser(ctx context.Context, userID int64, page, pageSize int, sortBy string) ([]*model.SteamLibraryItem, int64, error) {
+	var items []*model.SteamLibraryItem
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&model.SteamLibraryItem{}).Where("user_id = ?", userID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	orderClause := "playtime DESC"
+	switch sortBy {
+	case "name":
+		orderClause = "game_name ASC"
+	case "recent":
+		orderClause = "last_played_at DESC"
+	case "playtime":
+		orderClause = "playtime DESC"
+	}
+
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).
+		Order(orderClause).
+		Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+// ListRecentPlayed 获取最近游玩的游戏
+func (r *SteamRepository) ListRecentPlayed(ctx context.Context, userID int64, limit int) ([]*model.SteamLibraryItem, error) {
+	var items []*model.SteamLibraryItem
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND playtime_2_weeks > ?", userID, 0).
+		Order("playtime_2_weeks DESC").
+		Limit(limit).
+		Find(&items).Error
+	return items, err
+}
+
+// DeleteLibraryByAccount 删除账号关联的所有游戏库数据
+func (r *SteamRepository) DeleteLibraryByAccount(ctx context.Context, accountID int64) error {
+	return r.db.WithContext(ctx).
+		Where("account_id = ?", accountID).
+		Delete(&model.SteamLibraryItem{}).Error
+}
+
 // ==================== Game 操作 ====================
 
 // FindGameByID 根据ID查询游戏
@@ -85,7 +220,7 @@ func (r *SteamRepository) UpsertGame(ctx context.Context, game *model.SteamGame)
 	}
 
 	// 更新已有记录
-	result := r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
+	return r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
 		"game_name":  game.GameName,
 		"developer":  game.Developer,
 		"publisher":  game.Publisher,
@@ -95,8 +230,7 @@ func (r *SteamRepository) UpsertGame(ctx context.Context, game *model.SteamGame)
 		"store_url":  game.StoreURL,
 		"playtime":   game.Playtime,
 		"is_owned":   game.IsOwned,
-	})
-	return result.Error
+	}).Error
 }
 
 // ==================== Deal 操作 ====================
