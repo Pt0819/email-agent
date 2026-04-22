@@ -266,6 +266,14 @@ func (s *SyncService) GetSyncStatus(ctx context.Context, userID int64) (map[stri
 	return status, nil
 }
 
+// Steam邮件分类集合
+var steamCategories = map[string]bool{
+	"steam_promotion": true,
+	"steam_wishlist":  true,
+	"steam_news":      true,
+	"steam_update":    true,
+}
+
 // classifyNewEmails 对新同步的邮件进行自动分类，返回成功分类数量
 func (s *SyncService) classifyNewEmails(ctx context.Context, emailIDs []int64) int {
 	classifiedCount := 0
@@ -303,10 +311,35 @@ func (s *SyncService) classifyNewEmails(ctx context.Context, emailIDs []int64) i
 			continue
 		}
 		classifiedCount++
+
+		// Steam邮件自动触发信息提取
+		if steamCategories[email.Category] {
+			s.extractSteamInfoAsync(ctx, id, email)
+		}
 	}
 
 	if classifiedCount > 0 {
 		fmt.Printf("自动分类完成: %d/%d 封邮件\n", classifiedCount, len(emailIDs))
 	}
 	return classifiedCount
+}
+
+// extractSteamInfoAsync 异步提取Steam游戏信息
+func (s *SyncService) extractSteamInfoAsync(ctx context.Context, emailID int64, email *model.Email) {
+	go func() {
+		extractReq := &agent.SteamExtractRequest{
+			EmailID:     fmt.Sprintf("%d", emailID),
+			Subject:     email.Subject,
+			SenderEmail: email.SenderEmail,
+			Content:     email.Content,
+			ContentHTML: email.ContentHTML,
+		}
+
+		_, err := s.agentClient.SteamExtract(context.Background(), extractReq)
+		if err != nil {
+			fmt.Printf("Steam信息提取失败 [%d]: %v\n", emailID, err)
+		} else {
+			fmt.Printf("Steam信息提取成功 [%d]: %s\n", emailID, email.Subject)
+		}
+	}()
 }

@@ -46,6 +46,10 @@ llm:
 # 分类配置
 classification:
   auto_classify: true
+  # 正则预筛选开关（开启后优先使用正则匹配，减少LLM调用）
+  use_regex_pre_filter: true
+  # 正则匹配置信度阈值（达到此值直接返回，不再调用LLM）
+  regex_confidence_threshold: 0.85
   categories:
     - code: "work_urgent"
       name: "紧急工作"
@@ -68,6 +72,23 @@ classification:
     - code: "spam"
       name: "垃圾邮件"
       priority: "low"
+    # Steam游戏相关分类
+    - code: "steam_promotion"
+      name: "Steam促销"
+      priority: "medium"
+      auto_extract: true  # 分类后自动触发Steam信息提取
+    - code: "steam_wishlist"
+      name: "Steam愿望单"
+      priority: "medium"
+      auto_extract: true
+    - code: "steam_news"
+      name: "Steam资讯"
+      priority: "low"
+      auto_extract: true
+    - code: "steam_update"
+      name: "Steam更新"
+      priority: "low"
+      auto_extract: false
 
 # 提取配置
 extraction:
