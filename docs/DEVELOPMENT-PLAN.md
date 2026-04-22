@@ -1,7 +1,7 @@
 # 后续开发计划
 
-> 版本：v2.0
-> 日期：2026-04-21
+> 版本：v2.1
+> 日期：2026-04-22
 > 状态：进行中
 > **战略方向：以 Steam 游戏资讯为核心的智能邮件 Agent**
 
@@ -87,6 +87,12 @@ Phase 6.5  推荐反馈闭环
 - 信息提取（行动项、会议、实体）
 - 每日摘要生成
 - LLM Manager（智谱GLM、DeepSeek、Mock）
+- **正则预筛选分类引擎（`classify_rules.py`）**
+  - Steam邮件快速识别（发件人域名 + 主题关键词）
+  - 7类普通邮件正则规则覆盖
+  - 高置信度直接返回，减少LLM调用成本
+  - 低置信度降级到LLM，支持参考预判结果
+- **Steam信息提取Agent**（HTML邮件解析、游戏信息结构化提取）
 
 **React前端 (email-web)**
 - 仪表盘（统计概览）
@@ -114,31 +120,35 @@ Phase 6.5  推荐反馈闭环
 
 **后端任务：**
 
-- [ ] 扩展邮件分类类别
+- [x] 扩展邮件分类类别
   - `steam_promotion` (促销邮件)
   - `steam_wishlist` (愿望单通知)
   - `steam_news` (游戏资讯)
   - `steam_update` (游戏更新)
-- [ ] 数据库表创建
+- [x] 数据库表创建
   - `steam_games` 表（游戏基础信息：名称、开发商、标签、类型）
   - `steam_deals` 表（促销信息：原价、折扣价、折扣率、起止日期）
-  - `email_game_tags` 表（邮件-游戏关联）
-- [ ] API端点
+- [x] API端点
   - `GET /api/v1/steam/emails` - 获取Steam分类邮件列表
   - `GET /api/v1/steam/games` - 获取已提取的游戏列表
   - `GET /api/v1/steam/deals` - 获取当前促销列表（支持筛选排序）
   - `GET /api/v1/steam/deals/:id` - 获取促销详情
+- [x] **同步后自动触发Steam信息提取**（`sync_service.go`）
 
 **Agent任务：**
 
-- [ ] Steam信息提取Agent（`steam_extractor.py`）
+- [x] Steam信息提取Agent（`steam_extract_service.py`）
   - 解析HTML邮件结构（适配Steam邮件模板）
   - 提取游戏名称、原价、折扣价、折扣率
   - 识别游戏标签和类型
   - 识别促销截止日期
-- [ ] Steam分类Prompt更新
+- [x] Steam分类Prompt更新
   - 增加Steam邮件分类规则
   - 提取结果结构化输出（JSON Schema）
+- [x] **正则预筛选引擎**（`classify_rules.py`）
+  - Steam发件人域名匹配
+  - 主题关键词快速识别
+  - Steam子分类细分（促销/愿望单/资讯/更新）
 
 **前端任务：**
 
@@ -150,20 +160,23 @@ Phase 6.5  推荐反馈闭环
 
 ```
 email-backend/server/
-├── model/steam_game.go         # 新增
-├── model/steam_deal.go         # 新增
-├── repository/steam_repo.go    # 新增
-├── service/steam_service.go    # 新增
-└── api/v1/steam.go             # 新增
+├── model/steam.go                  # 已实现
+├── model/preference.go             # 已实现（偏好数据模型）
+├── repository/steam_repo.go         # 已实现
+├── repository/preference_repo.go    # 已实现（偏好仓库）
+├── service/steam_service.go         # 已实现
+└── api/v1/steam.go                  # 已实现
 
 email-agent/app/
-├── agents/steam_extractor.py   # 新增
-└── prompts/steam_extraction.py # 新增
+├── prompts/classify_rules.py        # 已实现（正则预筛选引擎）
+├── prompts/steam_extraction.py      # 已实现
+├── services/classify_service.py     # 已实现（集成正则筛选）
+└── services/steam_extract_service.py # 已实现
 
 email-web/src/
-├── pages/SteamDeals.tsx        # 新增
-├── components/DealCard.tsx     # 新增
-└── api/steamApi.ts             # 新增
+├── pages/SteamDeals.tsx             # 已实现
+├── components/DealCard.tsx          # 已实现
+└── api/steamApi.ts                  # 已实现
 ```
 
 **验收标准：**
@@ -257,11 +270,10 @@ email-web/src/
 
 **后端任务：**
 
-- [ ] 用户偏好画像模型（`user_gaming_profile` 表）
-  - 偏好标签及权重（如：{"开放世界": 1200, "RPG": 800}）
-  - 偏好类型（如：["动作冒险", "策略模拟"]）
-  - 游戏风格分析结果（LLM生成）
-  - 特殊兴趣识别（独立游戏/3A、剧情/玩法驱动等）
+- [x] 用户偏好数据结构
+  - `user_game_preferences` 表（偏好标签及权重）
+  - `recommendation_feedback` 表（推荐反馈记录）
+  - `model/preference.go` + `repository/preference_repo.go`
 - [ ] 偏好分析触发（游戏库同步后自动分析）
 - [ ] API端点
   - `GET /api/v1/steam/profile/preference` - 获取偏好画像
@@ -538,11 +550,12 @@ email-web/src/
 
 ### 第一阶段验收：Steam邮件解析
 
-| 序号 | 验收项 | 通过标准 |
-|------|--------|---------|
-| 6 | Steam邮件识别 | 自动识别促销/愿望单/资讯邮件，准确率 > 90% |
-| 7 | 游戏信息提取 | 正确提取游戏名称、价格、折扣率 |
-| 8 | 促销展示 | 前端展示促销列表，支持按折扣/价格排序 |
+| 序号 | 验收项 | 状态 | 通过标准 |
+|------|--------|------|---------|
+| 6 | Steam邮件识别 | ✅ 已完成 | 正则预筛选 + LLM双重识别，准确率 > 90% |
+| 7 | 游戏信息提取 | ✅ 已完成 | 正确提取游戏名称、价格、折扣率 |
+| 8 | 促销展示 | ✅ 已完成 | 前端展示促销列表，支持按折扣/价格排序 |
+| 9 | 自动触发提取 | ✅ 已完成 | Steam分类后自动异步提取游戏信息 |
 
 ### 第二阶段验收：Steam数据集成
 
@@ -602,5 +615,5 @@ email-web/src/
 
 ---
 
-*文档版本：v2.0*
-*最后更新：2026-04-21*
+*文档版本：v2.1*
+*最后更新：2026-04-22*
