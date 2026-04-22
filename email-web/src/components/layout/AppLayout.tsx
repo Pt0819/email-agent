@@ -38,114 +38,132 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Mail className="w-6 h-6 text-blue-600" />
-              <h1 className="text-xl font-bold text-gray-900">邮件分类系统</h1>
-            </div>
+      <header className="glass border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
+                <Mail className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">Mail Agent</span>
+            </Link>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {/* 导航 */}
-              <nav className="flex items-center gap-1">
+              <nav className="flex items-center gap-1 mr-2">
                 <Link
                   to="/"
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`relative p-2.5 rounded-xl transition-all duration-200 ${
                     isActive('/') && location.pathname === '/'
-                      ? 'text-blue-600 bg-blue-50'
+                      ? 'text-primary-600 bg-primary-50 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                   }`}
                   title="仪表盘"
                 >
                   <LayoutDashboard className="w-5 h-5" />
+                  {isActive('/') && location.pathname === '/' && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary-600 rounded-full" />
+                  )}
                 </Link>
                 <Link
                   to="/emails"
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`relative p-2.5 rounded-xl transition-all duration-200 ${
                     isActive('/emails')
-                      ? 'text-blue-600 bg-blue-50'
+                      ? 'text-primary-600 bg-primary-50 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                   }`}
                   title="邮件列表"
                 >
                   <List className="w-5 h-5" />
+                  {isActive('/emails') && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary-600 rounded-full" />
+                  )}
                 </Link>
 
                 {/* Steam下拉菜单 */}
                 <div className="relative">
                   <button
                     onClick={() => setShowSteamMenu(!showSteamMenu)}
-                    className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                    className={`relative p-2.5 rounded-xl transition-all duration-200 flex items-center gap-1 ${
                       isSteamActive()
-                        ? 'text-green-600 bg-green-50'
+                        ? 'text-emerald-600 bg-emerald-50 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                     }`}
                   >
                     <Gamepad2 className="w-5 h-5" />
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showSteamMenu ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSteamMenu ? 'rotate-180' : ''}`} />
+                    {isSteamActive() && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-emerald-600 rounded-full" />
+                    )}
                   </button>
 
                   {showSteamMenu && (
-                    <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
-                      <Link
-                        to="/steam/library"
-                        onClick={() => setShowSteamMenu(false)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                          location.pathname === '/steam/library'
-                            ? 'text-green-600 bg-green-50'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Library className="w-4 h-4" />
-                        游戏库
-                      </Link>
-                      <Link
-                        to="/steam/deals"
-                        onClick={() => setShowSteamMenu(false)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                          location.pathname === '/steam/deals'
-                            ? 'text-green-600 bg-green-50'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Gamepad2 className="w-4 h-4" />
-                        促销信息
-                      </Link>
-                    </div>
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowSteamMenu(false)} />
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-fade-in">
+                        <Link
+                          to="/steam/library"
+                          onClick={() => setShowSteamMenu(false)}
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            location.pathname === '/steam/library'
+                              ? 'text-emerald-600 bg-emerald-50'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Library className="w-4 h-4" />
+                          游戏库
+                        </Link>
+                        <Link
+                          to="/steam/deals"
+                          onClick={() => setShowSteamMenu(false)}
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            location.pathname === '/steam/deals'
+                              ? 'text-emerald-600 bg-emerald-50'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Gamepad2 className="w-4 h-4" />
+                          促销信息
+                        </Link>
+                      </div>
+                    </>
                   )}
                 </div>
 
                 <Link
                   to="/settings"
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`relative p-2.5 rounded-xl transition-all duration-200 ${
                     isActive('/settings')
-                      ? 'text-blue-600 bg-blue-50'
+                      ? 'text-primary-600 bg-primary-50 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                   }`}
                   title="设置"
                 >
                   <Settings className="w-5 h-5" />
+                  {isActive('/settings') && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary-600 rounded-full" />
+                  )}
                 </Link>
               </nav>
 
               {/* 用户信息和登出 */}
               {user && (
-                <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-blue-600" />
+                <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-500 rounded-xl flex items-center justify-center shadow-sm">
+                      <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="hidden sm:block">
-                      <p className="text-sm font-medium text-gray-700">{user.username}</p>
+                      <p className="text-sm font-medium text-gray-800">{user.username}</p>
                       <p className="text-xs text-gray-400">{user.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200"
                     title="退出登录"
                   >
                     <LogOut className="w-5 h-5" />
@@ -158,7 +176,7 @@ export default function AppLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="w-full">
         <Outlet />
       </main>
     </div>

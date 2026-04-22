@@ -145,28 +145,28 @@ export default function SteamLibrary() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Gamepad2 className="w-7 h-7 text-blue-600" />
+            <Gamepad2 className="w-7 h-7 text-emerald-600" />
             Steam 游戏库
           </h1>
-          <p className="mt-1 text-gray-500">
+          <p className="mt-1 text-sm text-gray-500">
             {account ? '已同步您的Steam游戏库' : '绑定Steam账号，同步游戏库和游玩记录'}
           </p>
         </div>
 
         {account && (
           <div className="flex gap-4">
-            <div className="bg-white rounded-lg border px-4 py-2 text-center">
-              <p className="text-2xl font-bold text-blue-600">{stats?.total_games || 0}</p>
-              <p className="text-xs text-gray-500">游戏库</p>
+            <div className="card px-5 py-3 text-center hover-lift">
+              <p className="text-2xl font-bold text-emerald-600">{stats?.total_games || 0}</p>
+              <p className="text-xs text-gray-500 mt-0.5">游戏库</p>
             </div>
-            <div className="bg-white rounded-lg border px-4 py-2 text-center">
-              <p className="text-2xl font-bold text-green-600">{recentGames.length}</p>
-              <p className="text-xs text-gray-500">近两周游玩</p>
+            <div className="card px-5 py-3 text-center hover-lift">
+              <p className="text-2xl font-bold text-blue-600">{recentGames.length}</p>
+              <p className="text-xs text-gray-500 mt-0.5">近两周游玩</p>
             </div>
           </div>
         )}
@@ -174,25 +174,25 @@ export default function SteamLibrary() {
 
       {/* Steam账号绑定卡片 */}
       {account ? (
-        <div className="bg-white rounded-lg border p-6">
+        <div className="card p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {account.avatar_url ? (
                 <img
                   src={account.avatar_url}
                   alt={account.steam_nickname}
-                  className="w-16 h-16 rounded-full"
+                  className="w-16 h-16 rounded-2xl shadow-md"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-md">
+                  <User className="w-8 h-8 text-white" />
                 </div>
               )}
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
                   {account.steam_nickname || 'Steam玩家'}
                 </h2>
-                <p className="text-sm text-gray-500">{account.steam_id}</p>
+                <p className="text-sm text-gray-500 font-mono">{account.steam_id}</p>
                 {account.last_sync_at && (
                   <p className="text-xs text-gray-400 mt-1">
                     最后同步: {account.last_sync_at}
@@ -204,14 +204,14 @@ export default function SteamLibrary() {
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className={`btn-primary ${syncing ? '' : 'shadow-glow-steam'}`}
               >
                 <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                同步游戏库
+                {syncing ? '同步中...' : '同步游戏库'}
               </button>
               <button
                 onClick={handleUnbind}
-                className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                className="btn-secondary text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
               >
                 <Unlink className="w-4 h-4" />
                 解绑
@@ -220,10 +220,10 @@ export default function SteamLibrary() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border p-6">
+        <div className="card p-6">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <Gamepad2 className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+              <Gamepad2 className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">绑定Steam账号</h2>
@@ -236,13 +236,13 @@ export default function SteamLibrary() {
               value={bindInput}
               onChange={(e) => setBindInput(e.target.value)}
               placeholder="输入Steam ID（如 76561198012345678）"
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input flex-1"
               onKeyDown={(e) => e.key === 'Enter' && handleBind()}
             />
             <button
               onClick={handleBind}
               disabled={binding || !bindInput.trim()}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="btn-primary shadow-glow-steam"
             >
               <Link className="w-4 h-4" />
               绑定
@@ -253,15 +253,15 @@ export default function SteamLibrary() {
 
       {/* 最近游玩 */}
       {account && recentGames.length > 0 && (
-        <div className="bg-white rounded-lg border p-6">
+        <div className="card p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-green-600" />
+            <Clock className="w-5 h-5 text-emerald-600" />
             近两周游玩
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {recentGames.map((game) => (
-              <div key={game.id} className="text-center">
-                <div className="w-full aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+            {recentGames.map((game, index) => (
+              <div key={game.id} className="text-center hover-lift" style={{ animationDelay: `${index * 50}ms` }}>
+                <div className="w-full aspect-square bg-gradient-to-br from-gray-100 to-gray-50 rounded-xl mb-2 flex items-center justify-center overflow-hidden shadow-sm">
                   {game.icon_url ? (
                     <img
                       src={`https://media.steampowered.com/steamcommunity/public/images/apps/${game.game_id}/${game.icon_url}.jpg`}
@@ -276,7 +276,7 @@ export default function SteamLibrary() {
                   )}
                 </div>
                 <p className="text-sm font-medium text-gray-900 truncate">{game.game_name}</p>
-                <p className="text-xs text-green-600">{formatPlaytime(game.playtime_2_weeks)}</p>
+                <p className="text-xs text-emerald-600 mt-0.5">{formatPlaytime(game.playtime_2_weeks)}</p>
               </div>
             ))}
           </div>
@@ -286,7 +286,7 @@ export default function SteamLibrary() {
       {/* 游戏库列表 */}
       {account && (
         <>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="card p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-gray-400" />
@@ -296,7 +296,7 @@ export default function SteamLibrary() {
                     setSortBy(e.target.value as SortOption);
                     setPage(1);
                   }}
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
                 >
                   {SORT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -308,33 +308,37 @@ export default function SteamLibrary() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="skeleton h-16 rounded-lg" />
+              ))}
             </div>
           ) : library.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border">
-              <Gamepad2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">游戏库为空</p>
-              <p className="text-gray-400 text-sm mt-1">点击"同步游戏库"按钮获取数据</p>
+            <div className="empty-state py-16">
+              <div className="empty-state-icon">
+                <Gamepad2 className="w-10 h-10 text-gray-300" />
+              </div>
+              <p className="empty-state-title">游戏库为空</p>
+              <p className="empty-state-desc">点击"同步游戏库"按钮获取数据</p>
             </div>
           ) : (
             <>
-              <div className="bg-white rounded-lg border overflow-hidden">
+              <div className="card overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-gray-50/50 border-b">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">游戏</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">总游玩时长</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">近两周</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">最后游玩</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">游戏</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">总游玩时长</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">近两周</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">最后游玩</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
-                    {library.map((game) => (
-                      <tr key={game.id} className="hover:bg-gray-50">
+                  <tbody className="divide-y divide-gray-50">
+                    {library.map((game, index) => (
+                      <tr key={game.id} className="table-row hover:bg-gray-50/50" style={{ animationDelay: `${index * 30}ms` }}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                            <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
                               {game.icon_url ? (
                                 <img
                                   src={`https://media.steampowered.com/steamcommunity/public/images/apps/${game.game_id}/${game.icon_url}.jpg`}
@@ -352,7 +356,7 @@ export default function SteamLibrary() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right text-gray-700">{formatPlaytime(game.playtime)}</td>
-                        <td className="px-4 py-3 text-right text-green-600">{formatPlaytime(game.playtime_2_weeks)}</td>
+                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">{formatPlaytime(game.playtime_2_weeks)}</td>
                         <td className="px-4 py-3 text-right text-gray-500 text-sm">
                           {game.last_played_at ? new Date(game.last_played_at).toLocaleDateString() : '-'}
                         </td>
@@ -369,10 +373,10 @@ export default function SteamLibrary() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`w-10 h-10 rounded-lg border ${
+                      className={`w-10 h-10 rounded-lg font-medium transition-all duration-200 ${
                         p === page
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'card hover:bg-gray-50 hover:-translate-y-0.5'
                       }`}
                     >
                       {p}
@@ -388,9 +392,12 @@ export default function SteamLibrary() {
 
       {/* 未绑定时显示示例数据 */}
       {!account && (
-        <div className="bg-gray-50 rounded-lg border border-dashed p-8 text-center">
-          <Gamepad2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">绑定Steam账号后即可查看您的游戏库</p>
+        <div className="card p-8 text-center border-dashed border-2 border-gray-200">
+          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Gamepad2 className="w-8 h-8 text-gray-300" />
+          </div>
+          <p className="text-gray-500 font-medium mb-2">绑定Steam账号后即可查看您的游戏库</p>
+          <p className="text-gray-400 text-sm">在上方输入Steam ID开始</p>
         </div>
       )}
     </div>

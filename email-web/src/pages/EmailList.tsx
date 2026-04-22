@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { emailApi, syncApi, accountApi } from '../api/client';
 import type { Email, EmailCategory, EmailStatus, EmailAccount } from '../api/types';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Mail } from 'lucide-react';
 import EmailCard from '../components/email/EmailCard';
 import FilterBar from '../components/email/FilterBar';
 import Pagination from '../components/ui/Pagination';
@@ -150,7 +150,7 @@ export default function EmailList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5 animate-fade-in">
       {/* 筛选栏 */}
       <FilterBar
         selectedCategory={selectedCategory}
@@ -168,7 +168,7 @@ export default function EmailList() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="flex items-center justify-center p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+        <div className="flex items-center justify-center p-4 bg-red-50 border border-red-200 rounded-xl text-red-600">
           <AlertCircle className="w-5 h-5 mr-2" />
           {error}
         </div>
@@ -176,9 +176,9 @@ export default function EmailList() {
 
       {/* 统计信息 */}
       <div className="flex items-center justify-between text-sm text-gray-600">
-        <span>共 {total} 封邮件</span>
+        <span>共 <span className="font-semibold text-gray-900">{total}</span> 封邮件</span>
         {loading && (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2 text-primary-600">
             <RefreshCw className="w-4 h-4 animate-spin" />
             加载中...
           </span>
@@ -187,29 +187,30 @@ export default function EmailList() {
 
       {/* 邮件列表 */}
       {emails.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <div className="text-gray-400 mb-2">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
+        <div className="card p-12">
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <Mail className="w-10 h-10 text-gray-300" />
+            </div>
+            <p className="empty-state-title">暂无邮件</p>
+            <p className="empty-state-desc">
+              {keyword || selectedCategory !== 'all' || selectedStatus !== 'all' || selectedAccount !== 'all'
+                ? '尝试调整筛选条件'
+                : '请先添加邮箱账户并同步邮件'}
+            </p>
           </div>
-          <p className="text-gray-500 mb-1">暂无邮件</p>
-          <p className="text-sm text-gray-400">
-            {keyword || selectedCategory !== 'all' || selectedStatus !== 'all' || selectedAccount !== 'all'
-              ? '尝试调整筛选条件'
-              : '请先添加邮箱账户并同步邮件'}
-          </p>
         </div>
       ) : (
         <>
           <div className="space-y-3">
-            {emails.map((email) => (
-              <EmailCard
-                key={email.id}
-                email={email}
-                onClassify={handleClassify}
-                onView={handleView}
-              />
+            {emails.map((email, index) => (
+              <div key={email.id} style={{ animationDelay: `${index * 30}ms` }} className="animate-fade-in">
+                <EmailCard
+                  email={email}
+                  onClassify={handleClassify}
+                  onView={handleView}
+                />
+              </div>
             ))}
           </div>
 
