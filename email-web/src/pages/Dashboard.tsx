@@ -37,6 +37,10 @@ export default function Dashboard() {
       notification: 0,
       promotion: 0,
       spam: 0,
+      steam_promotion: 0,
+      steam_wishlist: 0,
+      steam_news: 0,
+      steam_update: 0,
       unclassified: 0,
     },
   });
@@ -71,6 +75,10 @@ export default function Dashboard() {
         notification: 0,
         promotion: 0,
         spam: 0,
+        steam_promotion: 0,
+        steam_wishlist: 0,
+        steam_news: 0,
+        steam_update: 0,
         unclassified: 0,
       };
 
