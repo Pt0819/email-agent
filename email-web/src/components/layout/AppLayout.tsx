@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Settings, LayoutDashboard, List, LogOut, User, Gamepad2 } from 'lucide-react';
+import { Mail, Settings, LayoutDashboard, List, LogOut, User, Gamepad2, ChevronDown, Library } from 'lucide-react';
 import type { User as UserType } from '../../api/types';
 
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<UserType | null>(null);
+  const [showSteamMenu, setShowSteamMenu] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -24,6 +25,10 @@ export default function AppLayout() {
       return location.pathname === '/';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const isSteamActive = () => {
+    return location.pathname.startsWith('/steam');
   };
 
   const handleLogout = () => {
@@ -68,17 +73,51 @@ export default function AppLayout() {
                 >
                   <List className="w-5 h-5" />
                 </Link>
-                <Link
-                  to="/steam/deals"
-                  className={`p-2 rounded-lg transition-colors ${
-                    isActive('/steam')
-                      ? 'text-green-600 bg-green-50'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                  title="Steam促销"
-                >
-                  <Gamepad2 className="w-5 h-5" />
-                </Link>
+
+                {/* Steam下拉菜单 */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSteamMenu(!showSteamMenu)}
+                    className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                      isSteamActive()
+                        ? 'text-green-600 bg-green-50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Gamepad2 className="w-5 h-5" />
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showSteamMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showSteamMenu && (
+                    <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
+                      <Link
+                        to="/steam/library"
+                        onClick={() => setShowSteamMenu(false)}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          location.pathname === '/steam/library'
+                            ? 'text-green-600 bg-green-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Library className="w-4 h-4" />
+                        游戏库
+                      </Link>
+                      <Link
+                        to="/steam/deals"
+                        onClick={() => setShowSteamMenu(false)}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          location.pathname === '/steam/deals'
+                            ? 'text-green-600 bg-green-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                        促销信息
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
                 <Link
                   to="/settings"
                   className={`p-2 rounded-lg transition-colors ${

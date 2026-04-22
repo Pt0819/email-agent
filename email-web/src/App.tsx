@@ -5,6 +5,7 @@ import EmailList from './pages/EmailList';
 import EmailDetail from './pages/EmailDetail';
 import Settings from './pages/Settings';
 import SteamDeals from './pages/SteamDeals';
+import SteamLibrary from './pages/SteamLibrary';
 import Login from './pages/Login';
 
 // 路由守卫 - 检查是否已登录
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
           {
             path: 'steam/deals',
             element: <SteamDeals />,
+          },
+          {
+            path: 'steam/library',
+            element: <SteamLibrary />,
           },
         ],
       },

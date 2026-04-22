@@ -307,4 +307,43 @@ export interface SteamDeal {
 export interface SteamStats {
   total_games: number;
   active_deals: number;
+  is_bound: boolean;
+  steam_nickname?: string;
+  avatar_url?: string;
+  last_sync?: string;
+}
+
+// Steam账号绑定
+export interface SteamAccount {
+  id: number;
+  user_id: number;
+  steam_id: string;
+  steam_nickname: string;
+  avatar_url: string;
+  profile_url: string;
+  real_name: string;
+  location: string;
+  last_sync_at?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Steam游戏库条目
+export interface SteamLibraryItem {
+  id: number;
+  user_id: number;
+  account_id: number;
+  game_id: string;
+  game_name: string;
+  playtime: number; // 总游玩时长(分钟)
+  playtime_2_weeks: number; // 最近两周(分钟)
+  last_played_at?: string;
+  icon_url: string;
+  is_synced: boolean;
+  created_at: string;
+}
+
+// 绑定Steam账号请求
+export interface BindSteamRequest {
+  steam_id: string;
 }
