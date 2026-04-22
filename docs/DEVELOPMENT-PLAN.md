@@ -1,6 +1,6 @@
 # 后续开发计划
 
-> 版本：v2.2
+> 版本：v2.3
 > 日期：2026-04-22
 > 状态：进行中
 > **战略方向：以 Steam 游戏资讯为核心的智能邮件 Agent**
@@ -268,9 +268,33 @@ email-web/src/
 |------|------|
 | **模块** | Agent + Backend |
 | **优先级** | **P0** |
-| **目标** | LLM分析用户游戏偏好类型，构建用户画像 |
+| **目标** | **自主性Agent** - 持续观察数据变化，自主决策并执行行动 |
 | **工期** | 第4周 |
 | **前置依赖** | Phase 6.2 完成 |
+| **设计文档** | [PREFERENCE-AGENT-AUTONOMOUS-DESIGN.md](./PREFERENCE-AGENT-AUTONOMOUS-DESIGN.md) |
+
+> **核心升级**: 从被动问答升级为感知-决策-行动闭环（Perceive-Decide-Act Loop）
+
+**自主性设计：**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  PreferenceAgent                        │
+│                                                          │
+│  感知层(Perceive) ──▶ 决策层(Decide) ──▶ 行动层(Act)     │
+│       │                  │                   │           │
+│  数据变化感知          规则+LLM判断         更新画像     │
+│  触发事件检测          自主模式识别         推送通知     │
+│                        异常情况发现         生成推荐     │
+└─────────────────────────────────────────────────────────┘
+```
+
+**自主性等级目标：**
+
+| 等级 | 能力 | 实现 |
+|------|------|------|
+| **L3 条件自主** | 基于规则的自主决策 | 规则引擎 + 自动画像更新 |
+| **L4 智能自主** | 规则 + LLM混合决策 | 复杂情况用LLM判断 |
 
 **后端任务：**
 
@@ -278,23 +302,39 @@ email-web/src/
   - `user_game_preferences` 表（偏好标签及权重）
   - `recommendation_feedback` 表（推荐反馈记录）
   - `model/preference.go` + `repository/preference_repo.go`
-- [ ] 偏好分析触发（游戏库同步后自动分析）
+- [ ] 自主性偏好分析Agent集成
+  - 偏好分析触发器（`PreferenceAgent`）
+  - 触发事件定义（Steam邮件同步、游玩时长更新、用户反馈等）
+  - 规则引擎决策
+  - 自动画像更新执行
 - [ ] API端点
   - `GET /api/v1/steam/profile/preference` - 获取偏好画像
   - `POST /api/v1/steam/profile/analyze` - 重新分析
+  - `GET /api/v1/steam/profile/insights` - 获取Agent洞察记录
 
 **Agent任务：**
 
-- [ ] 偏好分析Agent（`preference_analyzer.py`）
-  - **方案A（MVP）**: 规则-based分析
-    - 游戏标签频率统计
-    - 按游玩时长加权
-    - 生成偏好标签排序
-  - **方案B（增强）**: LLM深度分析
-    - 解读偏好背后的游戏风格
-    - 识别单人与多人、开放世界与线性等偏好
-    - 特殊兴趣识别（独立游戏/3A大作、像素风/写实风）
-- [ ] 偏好分析Prompt
+- [ ] 偏好分析Agent（`PreferenceAgent`类）
+  - **感知器（Perceiver）**
+    - `PlaytimePerceiver` - 游玩时长变化感知
+    - `SteamEmailPerceiver` - Steam邮件变化感知
+    - `UserFeedbackPerceiver` - 用户反馈感知
+    - `PeriodicPerceiver` - 定时检查感知
+  - **决策器（Decider）**
+    - `RuleEngine` - 规则快速判断
+    - `PreferenceDecider` - 规则+LLM混合决策
+  - **执行器（Actor）**
+    - `PreferenceActor` - 决策执行
+  - **状态管理（State）**
+    - `PreferenceState` - 画像快照、变化历史、洞察记录
+- [ ] 触发事件系统
+  - `TriggerEvent` - 事件数据结构
+  - `TriggerType` - 事件类型枚举
+- [ ] 自主行动能力
+  - 自动检测偏好变化并更新画像
+  - 异常模式识别（极端游玩、新类型探索）
+  - 生成自然语言洞察
+  - 主动推送匹配推荐
 
 **前端任务：**
 
@@ -302,6 +342,9 @@ email-web/src/
   - 偏好标签云可视化
   - Top类型、风格展示
   - 偏好权重雷达图
+- [ ] Agent洞察日志展示
+  - 决策理由展示
+  - 变化历史时间线
 
 **涉及文件：**
 
@@ -310,23 +353,37 @@ email-backend/server/
 ├── model/user_gaming_profile.go    # 新增
 ├── repository/profile_repo.go      # 新增
 ├── service/preference_service.go   # 新增
-└── api/v1/preference.go            # 新增
+├── api/v1/preference.go           # 新增
+├── model/trigger_event.go          # 新增（触发事件模型）
+├── model/preference_insight.go     # 新增（洞察记录模型）
 
 email-agent/app/
-├── agents/preference_analyzer.py   # 新增
-└── prompts/preference_analysis.py  # 新增
+├── agents/preference_agent.py      # 新增（主Agent类）
+├── agents/perceiver/               # 新增（感知器目录）
+│   ├── base.py                      # 感知器基类
+│   ├── playtime.py                  # 游玩感知器
+│   ├── steam_email.py               # Steam邮件感知器
+│   └── user_feedback.py             # 用户反馈感知器
+├── agents/decider/                 # 新增（决策器目录）
+│   ├── rule_engine.py               # 规则引擎
+│   └── llm_decider.py              # LLM决策器
+├── agents/actor.py                  # 新增（执行器）
+├── agents/state.py                  # 新增（状态管理）
+└── models/trigger_event.py         # 新增（事件数据模型）
 
 email-web/src/
 ├── pages/PreferenceAnalysis.tsx    # 新增
-├── components/PreferenceChart.tsx  # 新增
+├── components/PreferenceChart.tsx   # 新增
+├── components/AgentInsightLog.tsx  # 新增（洞察日志组件）
 └── api/steamApi.ts                 # 扩展
 ```
 
 **验收标准：**
-- 自动生成用户偏好画像
-- 偏好标签覆盖率 > 85%
-- LLM分析的偏好描述准确、有洞察力
-- 用户反馈准确率 > 80%
+- 游戏库同步后自动触发偏好分析
+- 自动生成用户偏好画像，覆盖率 > 85%
+- Agent决策可追溯（洞察日志、决策理由）
+- 异常模式自动检测并通知用户
+- 用户反馈驱动画像动态更新
 
 ---
 
@@ -336,9 +393,11 @@ email-web/src/
 |------|------|
 | **模块** | Backend + Agent + Web |
 | **优先级** | **P0** |
-| **目标** | 根据偏好画像推荐游戏 |
+| **目标** | **自主推荐触发** - Agent主动匹配促销与偏好，生成个性化推荐 |
 | **工期** | 第5-6周 |
 | **前置依赖** | Phase 6.3 完成 |
+
+> **与自主性Agent整合**: 推荐生成作为Agent的执行能力之一，可主动触发
 
 **后端任务：**
 
@@ -350,6 +409,10 @@ email-web/src/
 - [ ] 推荐结果存储（`game_recommendations` 表）
   - 匹配分数、推荐理由
   - 用户反馈追踪（like/dislike/ignore）
+- [ ] **自主推荐触发机制**
+  - 新促销邮件到达时自动匹配偏好
+  - 偏好变化后重新生成推荐
+  - 定时检查高匹配度促销
 - [ ] API端点
   - `GET /api/v1/recommendations` - 获取推荐列表
   - `GET /api/v1/recommendations/deals` - 仅推荐促销游戏
@@ -357,11 +420,18 @@ email-web/src/
 
 **Agent任务：**
 
-- [ ] 推荐理由生成Agent（`recommendation.py`）
+- [ ] 推荐生成作为Agent执行能力
+  - 集成到 `PreferenceActor` 的 `ActionType.GENERATE_RECOMMENDATION`
+  - 规则触发：`新促销匹配高偏好` → 自动生成推荐
+  - LLM辅助生成推荐理由
+- [ ] 推荐理由生成（`recommendation_reason.py`）
   - LLM生成个性化推荐理由
   - 结合用户游玩历史和偏好
   - 强调匹配点（如："基于你最近大量游玩《艾尔登法环》..."）
-- [ ] 推荐理由Prompt
+- [ ] 主动推送决策
+  - 高匹配度促销（>80%）自动推送通知
+  - 中等匹配度（50-80%）纳入推荐列表
+  - 低匹配度过滤
 
 **前端任务：**
 
@@ -510,12 +580,14 @@ email-web/src/
   │
 2026-05 中旬 ──────────────────────────────────────────────
   │
-  │  ★ 第三阶段：偏好分析 + 智能推荐（P0 - 核心）
-  │  ├── 偏好分析Agent（规则+LLM）
-  │  ├── 用户偏好画像
+  │  ★ 第三阶段：偏好分析（自主性Agent）+ 智能推荐（P0 - 核心）
+  │  ├── 感知-决策-行动闭环实现（PreferenceAgent）
+  │  ├── 规则引擎 + LLM混合决策
+  │  ├── 自动画像更新 + 异常检测
+  │  ├── 自主推荐触发
   │  ├── 推荐算法引擎
   │  ├── LLM推荐理由生成
-  │  └── 前端推荐页面
+  │  └── 前端偏好画像 + 推荐列表
   │
 2026-05 下旬 ──────────────────────────────────────────────
   │
@@ -569,29 +641,33 @@ email-web/src/
 | 11 | 游戏库同步 | ✅ 已完成 | 显示最近30天游玩游戏及游玩时长 |
 | 12 | 元数据完整 | ✅ 已完成 | 游戏标签、类型完整度 > 80%（Mock数据） |
 
-### 第三阶段验收：偏好分析 + 推荐
+### 第三阶段验收：偏好分析 + 推荐（自主性Agent）
 
-| 序号 | 验收项 | 通过标准 |
-|------|--------|---------|
-| 12 | 偏好画像 | 自动生成偏好标签，覆盖率 > 85% |
-| 13 | 个性化推荐 | 推荐非已拥有游戏，理由自然有说服力 |
-| 14 | 用户满意度 | 推荐满意度 > 70%，多样性 > 60% |
+| 序号 | 验收项 | 状态 | 通过标准 |
+|------|--------|------|---------|
+| 12 | **自主感知** | 待开发 | 游戏库同步后自动触发感知，不需用户手动 |
+| 13 | **规则决策** | 待开发 | 游玩时长>10h自动调整权重，有日志可查 |
+| 14 | **LLM增强决策** | 待开发 | 复杂情况LLM分析，生成可读洞察 |
+| 15 | **异常检测** | 待开发 | 极端游玩/新类型探索自动标记 |
+| 16 | 偏好画像 | 待开发 | 自动生成偏好标签，覆盖率 > 85% |
+| 17 | 个性化推荐 | 待开发 | 推荐非已拥有游戏，理由自然有说服力 |
+| 18 | 用户满意度 | 待开发 | 推荐满意度 > 70%，多样性 > 60% |
 
 ### 第四阶段验收：反馈闭环 + 基础完善
 
 | 序号 | 验收项 | 通过标准 |
 |------|--------|---------|
-| 15 | 反馈优化 | 用户反馈影响后续推荐，无信息茧房 |
-| 16 | LLM配置 | 用户可切换LLM Provider，配置生效 |
-| 17 | Action Items | 邮件详情页显示提取的行动项，可标记完成 |
+| 19 | 反馈优化 | 用户反馈影响后续推荐，无信息茧房 |
+| 20 | LLM配置 | 用户可切换LLM Provider，配置生效 |
+| 21 | Action Items | 邮件详情页显示提取的行动项，可标记完成 |
 
 ### 第五阶段验收：生产部署
 
 | 序号 | 验收项 | 通过标准 |
 |------|--------|---------|
-| 18 | Docker部署 | `docker-compose up -d` 一键启动全部服务 |
-| 19 | HTTPS访问 | 通过Nginx提供HTTPS访问 |
-| 20 | 安全审计 | 无明文密钥、API限流生效、日志可追溯 |
+| 22 | Docker部署 | `docker-compose up -d` 一键启动全部服务 |
+| 23 | HTTPS访问 | 通过Nginx提供HTTPS访问 |
+| 24 | 安全审计 | 无明文密钥、API限流生效、日志可追溯 |
 
 ---
 
@@ -608,6 +684,16 @@ email-web/src/
 | Steam邮件数量不足 | 中 | 中 | 支持关注Curator获取更多资讯 |
 | 推荐同质化 | 低 | 中 | 多样性策略 + 惊喜推荐机制 |
 
+### 自主性Agent风险
+
+| 风险项 | 影响 | 概率 | 缓解措施 |
+|--------|------|------|----------|
+| 过度更新画像 | 画像不稳定 | 中 | 设置更新冷却时间（MIN_UPDATE_INTERVAL） |
+| LLM误判 | 错误洞察 | 中 | 规则兜底，保留人工确认机制 |
+| 行动边界失控 | 意外行为 | 低 | 严格限制ActionType白名单 |
+| Token成本过高 | 成本增加 | 中 | 规则优先，LLM仅复杂情况调用 |
+| 洞察质量不一 | 用户困惑 | 中 | 洞察格式标准化 + 人工审核 |
+
 ### 通用技术风险
 
 | 风险项 | 影响 | 缓解措施 |
@@ -619,5 +705,5 @@ email-web/src/
 
 ---
 
-*文档版本：v2.2*
+*文档版本：v2.3*
 *最后更新：2026-04-22*
