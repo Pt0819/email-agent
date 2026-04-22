@@ -65,12 +65,12 @@ export default function SteamDeals() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
       {/* 页面标题和统计 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Gamepad2 className="w-7 h-7 text-green-600" />
+            <Gamepad2 className="w-7 h-7 text-emerald-600" />
             Steam 促销
           </h1>
           <p className="mt-1 text-gray-500">
@@ -80,20 +80,20 @@ export default function SteamDeals() {
 
         {stats && (
           <div className="flex gap-4">
-            <div className="bg-white rounded-lg border px-4 py-2 text-center">
-              <p className="text-2xl font-bold text-green-600">{stats.active_deals}</p>
-              <p className="text-xs text-gray-500">活跃促销</p>
+            <div className="card px-5 py-3 text-center hover-lift">
+              <p className="text-2xl font-bold text-emerald-600">{stats.active_deals}</p>
+              <p className="text-xs text-gray-500 mt-0.5">活跃促销</p>
             </div>
-            <div className="bg-white rounded-lg border px-4 py-2 text-center">
+            <div className="card px-5 py-3 text-center hover-lift">
               <p className="text-2xl font-bold text-blue-600">{stats.total_games}</p>
-              <p className="text-xs text-gray-500">已收录游戏</p>
+              <p className="text-xs text-gray-500 mt-0.5">已收录游戏</p>
             </div>
           </div>
         )}
       </div>
 
       {/* 筛选栏 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="card p-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           {/* 排序选择 */}
           <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function SteamDeals() {
                 setSortBy(e.target.value as SortOption);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -114,7 +114,7 @@ export default function SteamDeals() {
 
           <div className="flex items-center gap-3">
             {/* 活跃筛选 */}
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={activeOnly}
@@ -122,16 +122,16 @@ export default function SteamDeals() {
                   setActiveOnly(e.target.checked);
                   setPage(1);
                 }}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
-              仅显示促销中
+              <span className="group-hover:text-gray-900 transition-colors">仅显示促销中</span>
             </label>
 
             {/* 刷新按钮 */}
             <button
               onClick={loadDeals}
               disabled={loading}
-              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+              className="icon-btn hover:text-emerald-600 hover:bg-emerald-50"
               title="刷新"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -142,20 +142,26 @@ export default function SteamDeals() {
 
       {/* 促销列表 */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <RefreshCw className="w-6 h-6 text-green-500 animate-spin" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton-card h-40" />
+          ))}
         </div>
       ) : deals.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border">
-          <Gamepad2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">暂无促销信息</p>
-          <p className="text-gray-400 text-sm mt-1">同步Steam邮件后将自动提取促销信息</p>
+        <div className="empty-state py-16">
+          <div className="empty-state-icon bg-emerald-50">
+            <Gamepad2 className="w-10 h-10 text-emerald-300" />
+          </div>
+          <p className="empty-state-title">暂无促销信息</p>
+          <p className="empty-state-desc">同步Steam邮件后将自动提取促销信息</p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {deals.map((deal) => (
-              <DealCard key={deal.id} deal={deal} />
+            {deals.map((deal, index) => (
+              <div key={deal.id} style={{ animationDelay: `${index * 50}ms` }} className="animate-fade-in">
+                <DealCard deal={deal} />
+              </div>
             ))}
           </div>
 
