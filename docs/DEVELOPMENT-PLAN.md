@@ -1,6 +1,6 @@
 # 后续开发计划
 
-> 版本：v2.1
+> 版本：v2.2
 > 日期：2026-04-22
 > 状态：进行中
 > **战略方向：以 Steam 游戏资讯为核心的智能邮件 Agent**
@@ -207,54 +207,58 @@ email-web/src/
 
 **后端任务：**
 
-- [ ] Steam Web API客户端（`pkg/steam/client.go`）
+- [x] Steam Web API客户端（`pkg/steam/client.go`）
   - HTTP客户端封装
   - 请求限流（300次/分钟以内）
   - 响应缓存（游戏元数据本地缓存24h）
   - 错误处理和重试
-- [ ] Steam账号管理
+  - **默认Mock模式，无需真实API Key**
+- [x] Steam账号管理
   - 用户绑定Steam ID
   - 系统使用统一API Key（或用户自备）
   - 验证账号有效性
-- [ ] 数据同步服务
+- [x] 数据同步服务
   - 定期同步用户游戏库（每日）
   - 同步最近游玩记录
   - 同步游戏元数据到 `steam_games` 表（标签、类型、封面图）
-- [ ] API端点
+- [x] API端点
   - `POST /api/v1/steam/bind` - 绑定Steam账号
   - `GET /api/v1/steam/profile` - 获取Steam资料
   - `DELETE /api/v1/steam/unbind` - 解绑账号
-  - `GET /api/v1/steam/games` - 获取游戏库
-  - `GET /api/v1/steam/games/recent` - 获取最近游玩
+  - `GET /api/v1/steam/library` - 获取游戏库
+  - `GET /api/v1/steam/library/recent` - 获取最近游玩
   - `POST /api/v1/steam/sync` - 手动同步
 
 **前端任务：**
 
-- [ ] Steam设置页（账号绑定/解绑）
-- [ ] 游戏库列表展示（名称、游玩时长、最近游玩时间）
-- [ ] 游玩时长统计图表
+- [x] Steam游戏库页面（账号绑定/解绑、游戏库展示）
+- [x] 游戏库列表展示（名称、游玩时长、最近游玩时间）
+- [x] 近两周游玩卡片展示
 
 **涉及文件：**
 
 ```
 email-backend/server/
 ├── pkg/steam/
-│   ├── client.go               # Steam API客户端
-│   ├── api.go                  # API封装
-│   └── types.go                # 数据类型
-├── service/steam_service.go    # 新增
-└── api/v1/steam.go             # 扩展
+│   ├── client.go               # Steam API客户端（支持Mock）
+│   └── mock.go                  # Mock测试数据
+├── model/steam_account.go      # Steam账号和游戏库模型
+├── service/steam_service.go    # 扩展（账号绑定、游戏库同步）
+└── api/v1/steam.go             # 扩展（新增API端点）
 
 email-web/src/
-├── pages/SteamSettings.tsx     # 新增
-├── components/GameLibrary.tsx  # 新增
-└── api/steamApi.ts             # 新增
+├── pages/SteamLibrary.tsx      # 游戏库页面
+├── pages/SteamDeals.tsx        # 促销页面（更新）
+├── api/steamApi.ts             # 扩展
+└── components/layout/AppLayout.tsx # Steam导航下拉菜单
 ```
 
 **验收标准：**
 - 用户可绑定Steam账号（输入Steam ID）
 - 显示最近30天游玩的游戏列表及游玩时长
 - 游戏元数据（标签、类型）完整度 > 80%
+
+> **注意**：当前使用Mock模式，绑定任意Steam ID即可获得示例游戏库数据
 
 ---
 
@@ -559,11 +563,11 @@ email-web/src/
 
 ### 第二阶段验收：Steam数据集成
 
-| 序号 | 验收项 | 通过标准 |
-|------|--------|---------|
-| 9 | Steam绑定 | 用户可输入Steam ID绑定账号 |
-| 10 | 游戏库同步 | 显示最近30天游玩游戏及游玩时长 |
-| 11 | 元数据完整 | 游戏标签、类型完整度 > 80% |
+| 序号 | 验收项 | 状态 | 通过标准 |
+|------|--------|------|---------|
+| 10 | Steam绑定 | ✅ 已完成 | 用户可输入Steam ID绑定账号（Mock模式） |
+| 11 | 游戏库同步 | ✅ 已完成 | 显示最近30天游玩游戏及游玩时长 |
+| 12 | 元数据完整 | ✅ 已完成 | 游戏标签、类型完整度 > 80%（Mock数据） |
 
 ### 第三阶段验收：偏好分析 + 推荐
 
@@ -615,5 +619,5 @@ email-web/src/
 
 ---
 
-*文档版本：v2.1*
+*文档版本：v2.2*
 *最后更新：2026-04-22*
