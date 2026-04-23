@@ -54,6 +54,11 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 			// auth/me 也需要保护
 			protected.GET("/auth/me", v1.NewAuthHandler(userService).Me)
 
+			// 用户资料相关（需要JWT保护）
+			protected.PUT("/auth/profile", v1.NewAuthHandler(userService).UpdateProfile)
+			protected.PUT("/auth/password", v1.NewAuthHandler(userService).ChangePassword)
+			protected.POST("/auth/avatar", v1.NewAuthHandler(userService).UploadAvatar)
+
 			// 邮件路由
 			v1.SetupEmailRoutes(protected, agentClient, emailRepo)
 

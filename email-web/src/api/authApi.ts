@@ -15,4 +15,21 @@ export const authApi = {
   /** 获取当前用户信息 */
   me: () =>
     apiClient.get<ApiResponse<User>>('/auth/me'),
+
+  /** 更新用户资料 */
+  updateProfile: (data: { username: string }) =>
+    apiClient.put<ApiResponse<User>>('/auth/profile', data),
+
+  /** 修改密码 */
+  changePassword: (data: { old_password: string; new_password: string; confirm_password: string }) =>
+    apiClient.put<ApiResponse<{ message: string }>>('/auth/password', data),
+
+  /** 上传头像 */
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiClient.post<ApiResponse<User>>('/auth/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
