@@ -44,7 +44,19 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total:', d['data']['total'], '| Count:', len\\(d['data']['list']\\)\\); [print\\(f\\\\\"  ID:{e['id']} account:{e['account_id']} from:{e['sender_email']}\\\\\"\\) for e in d['data']['list']]\")",
       "Read(//d d:/claude project/**)",
       "Bash(./.venv/Scripts/activate)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(cd /d \"D:\\\\claude project\\\\mail-agent\\\\email-backend\")",
+      "Bash(dir cmd\\\\server\\\\main.go)",
+      "Bash(taskkill //F //PID 24312 //T)",
+      "Bash(taskkill //F //PID 51496 //T)",
+      "Bash(taskkill //F //PID 31228 //T)",
+      "Bash(npx vite:*)",
+      "Bash(taskkill //F //IM \"node.exe\" //FI \"WINDOWTITLE eq vite\")",
+      "Bash(lsof -ti:8080,5173,9111)",
+      "Bash(xargs -r kill)",
+      "Bash(tasklist)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -I{} taskkill //F //PID {})"
     ]
   }
 }
