@@ -95,7 +95,10 @@ export default function Dashboard() {
   const fetchDailySummary = useCallback(async () => {
     try {
       const response = await summaryApi.daily();
-      setDailySummary(response as unknown as DailySummary);
+      const summaryData = (response as unknown as { code: number; data: DailySummary }).data;
+      if (summaryData) {
+        setDailySummary(summaryData);
+      }
     } catch (err) {
       console.error('获取每日摘要失败:', err);
     }
@@ -204,7 +207,7 @@ export default function Dashboard() {
               <p className="text-gray-700 leading-relaxed">
                 {dailySummary.summary_text}
               </p>
-              {dailySummary.important_emails.length > 0 && (
+              {(dailySummary.important_emails?.length ?? 0) > 0 && (
                 <div className="mt-5">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -238,7 +241,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-              {dailySummary.action_items.length > 0 && (
+              {(dailySummary.action_items?.length ?? 0) > 0 && (
                 <div className="mt-5">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <ListTodo className="w-4 h-4 text-blue-500" />
