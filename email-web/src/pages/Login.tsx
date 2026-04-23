@@ -206,7 +206,7 @@ export default function Login() {
                       required={!isLogin}
                       minLength={2}
                       maxLength={50}
-                      className="input pl-12"
+                      className="w-full pl-12 pr-3 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                     />
                   </div>
                 </div>
@@ -226,7 +226,7 @@ export default function Login() {
                     onChange={handleChange}
                     placeholder="请输入邮箱"
                     required
-                    className="input pl-12"
+                    className="w-full pl-12 pr-3 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -246,7 +246,7 @@ export default function Login() {
                     placeholder={isLogin ? '请输入密码' : '请设置密码（至少6位）'}
                     required
                     minLength={6}
-                    className="input pl-12 pr-12"
+                    className="w-full pl-12 pr-10 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                   />
                   <button
                     type="button"
@@ -273,7 +273,7 @@ export default function Login() {
                       onChange={handleChange}
                       placeholder="请再次输入密码"
                       required={!isLogin}
-                      className="input pl-12"
+                      className="w-full pl-12 pr-3 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                     />
                   </div>
                 </div>
