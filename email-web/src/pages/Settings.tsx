@@ -212,12 +212,12 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">邮箱地址</label>
                 <input type="email" required placeholder="yourname@126.com" value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="input" />
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">邮箱服务商</label>
                 <select value={formData.provider} onChange={(e) => setFormData({ ...formData, provider: e.target.value as EmailProvider })}
-                  className="input">
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-gray-900 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
                   <option value="126">网易126邮箱</option>
                   <option value="gmail">Gmail</option>
                   <option value="outlook">Outlook</option>
@@ -228,7 +228,7 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">授权码</label>
                 <input type="password" required placeholder="请输入邮箱授权码（非登录密码）" value={formData.credential}
                   onChange={(e) => setFormData({ ...formData, credential: e.target.value })}
-                  className="input" />
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" />
                 <p className="mt-2 text-xs text-gray-500">
                   {formData.provider === '126'
                     ? '126邮箱授权码获取方式：设置 → POP3/SMTP/IMAP → 开启服务 → 生成授权码'

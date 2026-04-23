@@ -236,7 +236,7 @@ export default function SteamLibrary() {
               value={bindInput}
               onChange={(e) => setBindInput(e.target.value)}
               placeholder="输入Steam ID（如 76561198012345678）"
-              className="input flex-1"
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               onKeyDown={(e) => e.key === 'Enter' && handleBind()}
             />
             <button
