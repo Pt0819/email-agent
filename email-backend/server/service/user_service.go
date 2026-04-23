@@ -203,13 +203,7 @@ func (s *UserService) ToAuthResponse(user *model.User, token string, expiresAt t
 	return &emailResponse.AuthResponse{
 		Token:     token,
 		ExpiresAt: expiresAt,
-		User: emailResponse.UserResponse{
-			ID:        user.ID,
-			UserID:    user.UserID,
-			Username:  user.Username,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-		},
+		User:      s.ToUserResponse(user),
 	}
 }
 
@@ -222,4 +216,70 @@ func (s *UserService) IsEmailExists(ctx context.Context, email string) bool {
 // NormalizeEmail 标准化邮箱（小写）
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// UpdateProfile 更新用户资料
+func (s *UserService) UpdateProfile(ctx context.Context, userID int64, username string) (*model.User, error) {
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	// 检查用户名是否被其他用户占用
+	existing, _ := s.repo.FindByUsername(ctx, username)
+	if existing != nil && existing.ID != userID {
+		return nil, errors.New("username already exists")
+	}
+
+	user.Username = username
+	if err := s.repo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// ChangePassword 修改密码
+func (s *UserService) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+
+	// 验证旧密码
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(oldPassword)); err != nil {
+		return errors.New("invalid old password")
+	}
+
+	// 哈希新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = string(hashedPassword)
+	return s.repo.Update(ctx, user)
+}
+
+// UpdateAvatar 更新用户头像
+func (s *UserService) UpdateAvatar(ctx context.Context, userID int64, avatarURL string) error {
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+
+	user.AvatarURL = avatarURL
+	return s.repo.Update(ctx, user)
+}
+
+// ToUserResponse 转换为用户响应（包含头像）
+func (s *UserService) ToUserResponse(user *model.User) emailResponse.UserResponse {
+	return emailResponse.UserResponse{
+		ID:        user.ID,
+		UserID:    user.UserID,
+		Username:  user.Username,
+		Email:     user.Email,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt,
+	}
 }

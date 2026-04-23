@@ -1,7 +1,38 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Settings, LayoutDashboard, List, LogOut, User, Gamepad2, ChevronDown, Library } from 'lucide-react';
+import { Settings, LayoutDashboard, List, LogOut, Gamepad2, ChevronDown, Library } from 'lucide-react';
 import type { User as UserType } from '../../api/types';
+
+// 预设的渐变配色方案（用于随机头像）
+const AVATAR_GRADIENTS = [
+  'from-pink-400 to-pink-600',
+  'from-purple-400 to-purple-600',
+  'from-indigo-400 to-indigo-600',
+  'from-blue-400 to-blue-600',
+  'from-cyan-400 to-cyan-600',
+  'from-teal-400 to-teal-600',
+  'from-emerald-400 to-emerald-600',
+  'from-green-400 to-green-600',
+  'from-lime-400 to-lime-600',
+  'from-amber-400 to-amber-600',
+  'from-orange-400 to-orange-600',
+  'from-red-400 to-red-600',
+];
+
+// 根据用户名生成固定颜色
+function getAvatarGradient(username: string): string {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
+// 获取用户名第一个字符（处理中英文）
+function getUsernameFirstChar(username: string): string {
+  if (!username) return '?';
+  return username.charAt(0);
+}
 
 export default function AppLayout() {
   const location = useLocation();
@@ -45,9 +76,11 @@ export default function AppLayout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-                <Mail className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logo.svg"
+                alt="Mail Agent"
+                className="w-9 h-9 object-contain group-hover:scale-105 transition-transform duration-200"
+              />
               <span className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">Mail Agent</span>
             </Link>
 
@@ -153,9 +186,20 @@ export default function AppLayout() {
               {user && (
                 <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
+                    {/* 用户头像 - 圆形 */}
+                    {user.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.username}
+                        className="w-9 h-9 rounded-full object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center shadow-sm`}>
+                        <span className="text-white text-sm font-medium">
+                          {getUsernameFirstChar(user.username)}
+                        </span>
+                      </div>
+                    )}
                     <div className="hidden sm:block">
                       <p className="text-sm font-medium text-gray-800">{user.username}</p>
                       <p className="text-xs text-gray-400">{user.email}</p>

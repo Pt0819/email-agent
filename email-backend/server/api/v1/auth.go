@@ -2,9 +2,13 @@
 package v1
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
 	"email-backend/server/middleware"
 	emailRequest "email-backend/server/model/request"
-	emailResponse "email-backend/server/model/response"
 	"email-backend/server/service"
 
 	"github.com/gin-gonic/gin"
@@ -115,13 +119,161 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 
-	data := &emailResponse.UserResponse{
-		ID:        user.ID,
-		UserID:    user.UserID,
-		Username:  user.Username,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+	data := h.userService.ToUserResponse(user)
+	success(c, data)
+}
+
+// UpdateProfile 更新用户资料
+// @Summary 更新用户资料
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body request.UpdateProfileRequest true "更新资料请求"
+// @Success 200 {object} response.Response{data=response.UserResponse}
+// @Failure 400 {object} response.Response
+// @Failure 401 {object} response.Response
+// @Router /api/v1/auth/profile [put]
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		errorResp(c, 401, "unauthorized")
+		return
 	}
+
+	var req emailRequest.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	user, err := h.userService.UpdateProfile(c.Request.Context(), userID, req.Username)
+	if err != nil {
+		if err.Error() == "username already exists" {
+			badRequest(c, "用户名已被使用")
+		} else {
+			errorResp(c, 500, err.Error())
+		}
+		return
+	}
+
+	data := h.userService.ToUserResponse(user)
+	success(c, data)
+}
+
+// ChangePassword 修改密码
+// @Summary 修改密码
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body request.ChangePasswordRequest true "修改密码请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.Response
+// @Failure 401 {object} response.Response
+// @Router /api/v1/auth/password [put]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		errorResp(c, 401, "unauthorized")
+		return
+	}
+
+	var req emailRequest.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	// 验证两次密码一致
+	if req.NewPassword != req.ConfirmPassword {
+		badRequest(c, "两次输入的密码不一致")
+		return
+	}
+
+	err := h.userService.ChangePassword(c.Request.Context(), userID, req.OldPassword, req.NewPassword)
+	if err != nil {
+		if err.Error() == "invalid old password" {
+			badRequest(c, "旧密码错误")
+		} else {
+			errorResp(c, 500, err.Error())
+		}
+		return
+	}
+
+	success(c, map[string]string{"message": "密码修改成功"})
+}
+
+// UploadAvatar 上传头像
+// @Summary 上传头像
+// @Tags 认证
+// @Accept multipart/form-data
+// @Produce json
+// @Param avatar formData file true "头像图片"
+// @Success 200 {object} response.Response{data=map[string]string}
+// @Failure 400 {object} response.Response
+// @Failure 401 {object} response.Response
+// @Router /api/v1/auth/avatar [post]
+func (h *AuthHandler) UploadAvatar(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		errorResp(c, 401, "unauthorized")
+		return
+	}
+
+	// 获取上传的文件
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		badRequest(c, "请选择要上传的头像图片")
+		return
+	}
+
+	// 验证文件类型
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	contentType := file.Header.Get("Content-Type")
+	if !allowedTypes[contentType] {
+		badRequest(c, "仅支持 JPG、PNG、GIF、WebP 格式")
+		return
+	}
+
+	// 验证文件大小（限制 2MB）
+	if file.Size > 2*1024*1024 {
+		badRequest(c, "头像图片大小不能超过 2MB")
+		return
+	}
+
+	// 生成文件名：user_{userID}_{timestamp}.{ext}
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("user_%d_%d%s", userID, time.Now().Unix(), ext)
+
+	// 保存文件到 uploads/avatars 目录
+	uploadDir := "./uploads/avatars"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		errorResp(c, 500, "failed to create upload directory")
+		return
+	}
+
+	filePath := filepath.Join(uploadDir, filename)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		errorResp(c, 500, "failed to save file")
+		return
+	}
+
+	// 生成访问URL
+	avatarURL := fmt.Sprintf("/uploads/avatars/%s", filename)
+
+	// 更新数据库
+	if err := h.userService.UpdateAvatar(c.Request.Context(), userID, avatarURL); err != nil {
+		errorResp(c, 500, "failed to update avatar")
+		return
+	}
+
+	// 返回更新后的用户信息
+	user, _ := h.userService.GetUserByID(c.Request.Context(), userID)
+	data := h.userService.ToUserResponse(user)
 	success(c, data)
 }
 
