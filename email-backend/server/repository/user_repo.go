@@ -81,3 +81,8 @@ func (r *UserRepository) UserIDExists(ctx context.Context, userID string) (bool,
 		Count(&count).Error
 	return count > 0, err
 }
+
+// Update 更新用户信息
+func (r *UserRepository) Update(ctx context.Context, user *model.User) error {
+	return r.db.WithContext(ctx).Save(user).Error
+}

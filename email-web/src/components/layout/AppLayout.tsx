@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Settings, LayoutDashboard, List, LogOut, User, Gamepad2, ChevronDown, Library } from 'lucide-react';
+import { Settings, LayoutDashboard, List, LogOut, Gamepad2, ChevronDown, Library } from 'lucide-react';
 import type { User as UserType } from '../../api/types';
 
 export default function AppLayout() {
@@ -45,9 +45,11 @@ export default function AppLayout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-                <Mail className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logo.svg"
+                alt="Mail Agent"
+                className="w-9 h-9 object-contain group-hover:scale-105 transition-transform duration-200"
+              />
               <span className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">Mail Agent</span>
             </Link>
 
@@ -153,9 +155,20 @@ export default function AppLayout() {
               {user && (
                 <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-500 rounded-xl flex items-center justify-center shadow-sm">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
+                    {/* 用户头像 - 圆形 */}
+                    {user.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.username}
+                        className="w-9 h-9 rounded-full object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-500 flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm font-medium">
+                          {user.username.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div className="hidden sm:block">
                       <p className="text-sm font-medium text-gray-800">{user.username}</p>
                       <p className="text-xs text-gray-400">{user.email}</p>

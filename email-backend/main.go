@@ -60,14 +60,17 @@ func main() {
 	// 8. 设置路由（获取调度器）
 	scheduler := router.Setup(r, core.Config())
 
-	// 9. 启动同步调度器
+	// 9. 静态文件服务（提供上传文件访问）
+	r.Static("/uploads", "./uploads")
+
+	// 10. 启动同步调度器
 	if core.Config().Email.AutoClassify {
 		if err := scheduler.Start(); err != nil {
 			log.Printf("警告: 启动同步调度器失败: %v", err)
 		}
 	}
 
-	// 10. 启动HTTP服务
+	// 11. 启动HTTP服务
 	addr := fmt.Sprintf(":%d", core.Config().Server.Port)
 
 	// 优雅关闭
