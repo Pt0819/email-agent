@@ -254,9 +254,34 @@ export default function SettingsPage() {
   // 获取账户显示邮箱（兼容字段名）
   const getEmail = (a: EmailAccount) => a.account_email || '';
 
-  // 获取用户名首字
-  const getInitials = (name: string) => {
-    return name.slice(0, 2).toUpperCase();
+  // 预设的渐变配色方案（用于随机头像）
+  const avatarGradients = [
+    'from-pink-400 to-pink-600',
+    'from-purple-400 to-purple-600',
+    'from-indigo-400 to-indigo-600',
+    'from-blue-400 to-blue-600',
+    'from-cyan-400 to-cyan-600',
+    'from-teal-400 to-teal-600',
+    'from-emerald-400 to-emerald-600',
+    'from-green-400 to-green-600',
+    'from-lime-400 to-lime-600',
+    'from-amber-400 to-amber-600',
+    'from-orange-400 to-orange-600',
+    'from-red-400 to-red-600',
+  ];
+
+  // 根据用户名生成固定颜色（相同用户名始终相同颜色）
+  const getAvatarGradient = (username: string): string => {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+      hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return avatarGradients[Math.abs(hash) % avatarGradients.length];
+  };
+
+  // 获取用户名第一个字符（处理中英文）
+  const getFirstChar = (name: string): string => {
+    return name ? name.charAt(0) : '?';
   };
 
   return (
@@ -505,9 +530,9 @@ export default function SettingsPage() {
                       className="w-20 h-20 rounded-full object-cover shadow-md"
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-400 to-primary-500 flex items-center justify-center shadow-md">
+                    <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center shadow-md`}>
                       <span className="text-white text-xl font-medium">
-                        {getInitials(user.username)}
+                        {getFirstChar(user.username)}
                       </span>
                     </div>
                   )}
