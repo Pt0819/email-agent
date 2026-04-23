@@ -3,6 +3,37 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, LayoutDashboard, List, LogOut, Gamepad2, ChevronDown, Library } from 'lucide-react';
 import type { User as UserType } from '../../api/types';
 
+// 预设的渐变配色方案（用于随机头像）
+const AVATAR_GRADIENTS = [
+  'from-pink-400 to-pink-600',
+  'from-purple-400 to-purple-600',
+  'from-indigo-400 to-indigo-600',
+  'from-blue-400 to-blue-600',
+  'from-cyan-400 to-cyan-600',
+  'from-teal-400 to-teal-600',
+  'from-emerald-400 to-emerald-600',
+  'from-green-400 to-green-600',
+  'from-lime-400 to-lime-600',
+  'from-amber-400 to-amber-600',
+  'from-orange-400 to-orange-600',
+  'from-red-400 to-red-600',
+];
+
+// 根据用户名生成固定颜色
+function getAvatarGradient(username: string): string {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
+// 获取用户名第一个字符（处理中英文）
+function getUsernameFirstChar(username: string): string {
+  if (!username) return '?';
+  return username.charAt(0);
+}
+
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -163,9 +194,9 @@ export default function AppLayout() {
                         className="w-9 h-9 rounded-full object-cover shadow-sm"
                       />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-500 flex items-center justify-center shadow-sm">
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center shadow-sm`}>
                         <span className="text-white text-sm font-medium">
-                          {user.username.slice(0, 2).toUpperCase()}
+                          {getUsernameFirstChar(user.username)}
                         </span>
                       </div>
                     )}
