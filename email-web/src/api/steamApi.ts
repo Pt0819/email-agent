@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { ApiResponse, PageData, SteamGame, SteamDeal, SteamStats, SteamAccount, SteamLibraryItem, BindSteamRequest } from './types';
+import type { ApiResponse, PageData, SteamGame, SteamDeal, SteamStats, SteamAccount, SteamLibraryItem, BindSteamRequest, UserGamingProfile, InsightListResponse, PreferenceAnalysisResult } from './types';
 
 // ==================== Steam API ====================
 
@@ -53,4 +53,18 @@ export const steamApi = {
   /** 提取Steam邮件信息 */
   extractFromEmail: (emailId: number) =>
     apiClient.post<ApiResponse<{ message: string }>>(`/steam/emails/${emailId}/extract`),
+
+  // ==================== 偏好分析 ====================
+
+  /** 获取用户偏好画像 */
+  getPreferenceProfile: () =>
+    apiClient.get<ApiResponse<UserGamingProfile>>('/steam/profile/preference'),
+
+  /** 触发偏好分析 */
+  analyzePreferences: () =>
+    apiClient.post<ApiResponse<PreferenceAnalysisResult>>('/steam/profile/analyze'),
+
+  /** 获取洞察记录 */
+  getInsights: (params?: { page?: number; page_size?: number }) =>
+    apiClient.get<ApiResponse<InsightListResponse>>('/steam/profile/insights', { params }),
 };

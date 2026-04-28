@@ -19,6 +19,8 @@ from app.api.v1.classify import router as classify_router
 from app.api.v1.extract import router as extract_router
 from app.api.v1.summary import router as summary_router
 from app.api.v1.steam import router as steam_router
+from app.api.v1.preference.router import router as preference_router
+from app.api.v1.recommendation.router import router as recommendation_router
 
 
 @asynccontextmanager
@@ -69,6 +71,8 @@ def create_app() -> FastAPI:
     app.include_router(extract_router, prefix="/api/v1")
     app.include_router(summary_router, prefix="/api/v1")
     app.include_router(steam_router, prefix="/api/v1")
+    app.include_router(preference_router, prefix="/api/v1")
+    app.include_router(recommendation_router, prefix="/api/v1")
 
     logger.info("FastAPI应用创建完成")
     return app

@@ -369,3 +369,98 @@ func (c *Client) Summary(ctx context.Context, req *SummaryRequest) (*SummaryResp
 
 	return &result, nil
 }
+
+// ==================== 偏好分析 ====================
+
+// PreferenceAnalyzeRequest 偏好分析请求
+type PreferenceAnalyzeRequest struct {
+	UserID       int64               `json:"user_id"`
+	GameLibrary  []LibraryGameData   `json:"game_library"`
+	CurrentPrefs []PreferenceTagData `json:"current_preferences"`
+	TriggerType  string              `json:"trigger_type"`
+}
+
+// LibraryGameData 游戏库游戏数据
+type LibraryGameData struct {
+	GameID        string `json:"game_id"`
+	GameName      string `json:"game_name"`
+	Playtime      int    `json:"playtime"`
+	Playtime2Weeks int   `json:"playtime_2_weeks"`
+	Genre         string `json:"genre"`
+	Tags          string `json:"tags"`
+	LastPlayedAt  string `json:"last_played_at,omitempty"`
+}
+
+// PreferenceTagData 偏好标签数据
+type PreferenceTagData struct {
+	Tag    string  `json:"tag"`
+	Weight float64 `json:"weight"`
+	Source string  `json:"source"`
+}
+
+// PreferenceAnalyzeResponse 偏好分析响应
+type PreferenceAnalyzeResponse struct {
+	Success      bool             `json:"success"`
+	NewTags      []TagChangeData  `json:"new_tags"`
+	UpdatedTags  []TagChangeData  `json:"updated_tags"`
+	Insights     []string        `json:"insights"`
+	Reasoning    string           `json:"reasoning"`
+	Anomalies    []AnomalyData    `json:"anomalies"`
+	RecommendRec bool             `json:"recommend_rec"`
+}
+
+// TagChangeData 标签变化数据
+type TagChangeData struct {
+	Tag   string  `json:"tag"`
+	Delta float64 `json:"delta"`
+}
+
+// AnomalyData 异常数据
+type AnomalyData struct {
+	Type        string `json:"type"`
+	GameID      string `json:"game_id,omitempty"`
+	GameName    string `json:"game_name,omitempty"`
+	Description string `json:"description"`
+}
+
+// PreferenceAnalyze 调用Agent进行偏好分析
+func (c *Client) PreferenceAnalyze(ctx context.Context, req *PreferenceAnalyzeRequest) (*PreferenceAnalyzeResponse, error) {
+	url := c.baseURL + "/api/v1/preference/analyze"
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("X-API-Key", c.apiKey)
+	}
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求Agent失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Agent返回错误: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	var result PreferenceAnalyzeResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return &result, nil
+}

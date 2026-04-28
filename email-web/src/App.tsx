@@ -6,6 +6,8 @@ import EmailDetail from './pages/EmailDetail';
 import Settings from './pages/Settings';
 import SteamDeals from './pages/SteamDeals';
 import SteamLibrary from './pages/SteamLibrary';
+import PreferenceAnalysis from './pages/PreferenceAnalysis';
+import Recommendations from './pages/Recommendations';
 import Login from './pages/Login';
 
 // 路由守卫 - 检查是否已登录
@@ -54,6 +56,14 @@ const router = createBrowserRouter([
           {
             path: 'steam/library',
             element: <SteamLibrary />,
+          },
+          {
+            path: 'steam/profile',
+            element: <PreferenceAnalysis />,
+          },
+          {
+            path: 'recommendations',
+            element: <Recommendations />,
           },
         ],
       },

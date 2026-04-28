@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Settings, LayoutDashboard, List, LogOut, Gamepad2, ChevronDown, Library } from 'lucide-react';
+import { Settings, LayoutDashboard, List, LogOut, Gamepad2, ChevronDown, Library, TrendingUp, Sparkles } from 'lucide-react';
 import type { User as UserType } from '../../api/types';
 
 // 预设的渐变配色方案（用于随机头像）
@@ -160,6 +160,31 @@ export default function AppLayout() {
                         >
                           <Gamepad2 className="w-4 h-4" />
                           促销信息
+                        </Link>
+                        <Link
+                          to="/steam/profile"
+                          onClick={() => setShowSteamMenu(false)}
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            location.pathname === '/steam/profile'
+                              ? 'text-emerald-600 bg-emerald-50'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <TrendingUp className="w-4 h-4" />
+                          偏好画像
+                        </Link>
+                        <div className="my-1 border-t border-gray-100" />
+                        <Link
+                          to="/recommendations"
+                          onClick={() => setShowSteamMenu(false)}
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            location.pathname === '/recommendations'
+                              ? 'text-blue-600 bg-blue-50'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          个性化推荐
                         </Link>
                       </div>
                     </>
