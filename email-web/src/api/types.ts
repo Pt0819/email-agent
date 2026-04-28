@@ -348,3 +348,75 @@ export interface SteamLibraryItem {
 export interface BindSteamRequest {
   steam_id: string;
 }
+
+// ==================== 偏好分析类型 ====================
+
+export interface TagPreference {
+  tag: string;
+  weight: number;
+  count?: number;
+  source: string;
+}
+
+export interface GenreCount {
+  genre: string;
+  count: number;
+}
+
+export interface RecentActivitySummary {
+  games_played_last_week: number;
+  total_playtime_last_week: number;
+  most_played_game: string;
+  most_played_game_hours: number;
+  new_games_added: number;
+  genre_distribution: GenreCount[];
+}
+
+export interface UserGamingProfile {
+  user_id: number;
+  top_tags: TagPreference[];
+  top_genres: TagPreference[];
+  top_developers: TagPreference[];
+  total_games: number;
+  total_playtime: number;
+  recent_activity: RecentActivitySummary | null;
+  last_analyzed_at: string | null;
+}
+
+export interface PreferenceInsight {
+  id: number;
+  event_type: string;
+  decision_type: string;
+  trigger_desc: string;
+  insight: string;
+  reasoning: string;
+  confidence: number;
+  is_anomaly: boolean;
+  anomaly_type: string;
+  game_id: string;
+  game_name: string;
+  tags_changed: TagChange[];
+  created_at: string;
+}
+
+export interface TagChange {
+  tag: string;
+  old: number;
+  new: number;
+  delta: number;
+}
+
+export interface InsightListResponse {
+  list: PreferenceInsight[];
+  total: number;
+  page: number;
+}
+
+export interface PreferenceAnalysisResult {
+  success: boolean;
+  profile: UserGamingProfile | null;
+  new_tags: TagPreference[];
+  updated_tags: TagPreference[];
+  insights: string[];
+  error?: string;
+}

@@ -34,6 +34,9 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 
 	// 创建Service
 	userService := service.NewUserService(userRepo)
+	preferenceRepo := repository.NewPreferenceRepository(global.DB())
+	insightRepo := repository.NewPreferenceInsightRepository(global.DB())
+	preferenceService := service.NewPreferenceService(preferenceRepo, insightRepo, steamRepo, agentClient)
 
 	// 创建同步调度器
 	scheduler := service.NewSyncScheduler(accountRepo, emailRepo, agentClient)
@@ -73,6 +76,9 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 
 		// Steam路由
 		v1.SetupSteamRoutes(protected, agentClient, steamRepo, emailRepo)
+
+		// 偏好分析路由
+		v1.SetupPreferenceRoutes(protected, preferenceService)
 		}
 	}
 
