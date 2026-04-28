@@ -56,7 +56,8 @@
       "Bash(xargs -r kill)",
       "Bash(tasklist)",
       "Bash(awk '{print $2}')",
-      "Bash(xargs -I{} taskkill //F //PID {})"
+      "Bash(xargs -I{} taskkill //F //PID {})",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
