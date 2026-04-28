@@ -420,3 +420,51 @@ export interface PreferenceAnalysisResult {
   insights: string[];
   error?: string;
 }
+
+// ==================== 推荐类型 ====================
+
+export interface GameRecommendation {
+  id: number;
+  game_id: string;
+  game_name: string;
+  game_genre: string;
+  game_tags: string[];
+  cover_url: string;
+  store_url: string;
+  match_score: number;
+  match_reasons: string[];
+  has_deal: boolean;
+  deal_price: number;
+  deal_discount: number;
+  deal_end_date?: string;
+  source: string;
+  status: string;
+  created_at: string;
+}
+
+export interface RecStatsSummary {
+  total_recommendations: number;
+  clicked_count: number;
+  purchase_count: number;
+  ctr: number;
+  purchase_rate: number;
+}
+
+export interface RecommendationListResponse {
+  list: GameRecommendation[];
+  total: number;
+  page: number;
+  page_size: number;
+  stats?: RecStatsSummary;
+}
+
+export interface FeedbackRequest {
+  action: 'like' | 'dislike' | 'click' | 'purchase' | 'ignore';
+}
+
+export interface GenerateRecommendationRequest {
+  max_count?: number;
+  deal_only?: boolean;
+  min_score?: number;
+  game_ids?: string[];
+}

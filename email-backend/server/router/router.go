@@ -38,6 +38,11 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 	insightRepo := repository.NewPreferenceInsightRepository(global.DB())
 	preferenceService := service.NewPreferenceService(preferenceRepo, insightRepo, steamRepo, agentClient)
 
+	// 推荐相关Repository和Service
+	feedbackRepo := repository.NewFeedbackRepository(global.DB())
+	recRepo := repository.NewRecommendationRepository(global.DB())
+	recService := service.NewRecommendationService(recRepo, steamRepo, preferenceRepo, feedbackRepo, agentClient)
+
 	// 创建同步调度器
 	scheduler := service.NewSyncScheduler(accountRepo, emailRepo, agentClient)
 
@@ -79,6 +84,9 @@ func Setup(r *gin.Engine, cfg *config.Config) *service.SyncScheduler {
 
 		// 偏好分析路由
 		v1.SetupPreferenceRoutes(protected, preferenceService)
+
+		// 推荐路由
+		v1.SetupRecommendationRoutes(protected, recService)
 		}
 	}
 

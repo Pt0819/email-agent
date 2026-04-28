@@ -88,3 +88,35 @@ func (r *PreferenceRepository) CountFeedbackByGame(ctx context.Context, userID i
 		Count(&count).Error
 	return count, err
 }
+
+// GetUserPreferences 获取用户偏好列表（非分页）
+func (r *PreferenceRepository) GetPreferences(ctx context.Context, userID int64) ([]model.UserGamePreference, error) {
+	var prefs []model.UserGamePreference
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("weight DESC").
+		Find(&prefs).Error
+	return prefs, err
+}
+
+// FindByTag 根据标签查找偏好
+func (r *PreferenceRepository) FindByTag(ctx context.Context, userID int64, tag string) (*model.UserGamePreference, error) {
+	var pref model.UserGamePreference
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND tag = ?", userID, tag).
+		First(&pref).Error
+	if err != nil {
+		return nil, err
+	}
+	return &pref, nil
+}
+
+// Create 创建偏好记录
+func (r *PreferenceRepository) Create(ctx context.Context, pref *model.UserGamePreference) error {
+	return r.db.WithContext(ctx).Create(pref).Error
+}
+
+// Update 更新偏好记录
+func (r *PreferenceRepository) Update(ctx context.Context, pref *model.UserGamePreference) error {
+	return r.db.WithContext(ctx).Save(pref).Error
+}

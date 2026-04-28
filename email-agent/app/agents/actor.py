@@ -145,4 +145,31 @@ class PreferenceActor:
     async def _generate_recommendation(self, decision: Decision,
                                        user_id: int) -> Dict[str, Any]:
         """生成推荐"""
-        return {"generated": False, "reason": "推荐生成待实现"}
+        try:
+            from app.llm import get_llm_manager
+            from app.services.recommendation_service import RecommendationReasonGenerator
+
+            llm_manager = get_llm_manager()
+            generator = RecommendationReasonGenerator(llm_manager)
+
+            # 从决策中获取推荐上下文
+            params = decision.reasoning or ""
+            game_info = decision.metadata.get("game", {}) if decision.metadata else {}
+
+            if game_info:
+                reason = await generator.generate_reason(
+                    game_name=game_info.get("game_name", ""),
+                    game_genre=game_info.get("game_genre", ""),
+                    game_tags=game_info.get("game_tags", []),
+                    user_preferences=decision.metadata.get("user_preferences", []),
+                )
+                return {
+                    "generated": True,
+                    "game_name": game_info.get("game_name", ""),
+                    "reason": reason,
+                }
+
+            return {"generated": False, "reason": "缺少游戏信息"}
+
+        except Exception as e:
+            return {"generated": False, "reason": f"推荐生成失败: {e}"}
