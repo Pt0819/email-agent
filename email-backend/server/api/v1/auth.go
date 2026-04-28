@@ -2,11 +2,13 @@
 package v1
 
 import (
+	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 	"time"
 
+	"email-backend/server/global"
 	"email-backend/server/middleware"
 	emailRequest "email-backend/server/model/request"
 	"email-backend/server/service"
@@ -208,7 +210,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 // @Accept multipart/form-data
 // @Produce json
 // @Param avatar formData file true "头像图片"
-// @Success 200 {object} response.Response{data=map[string]string}
+// @Success 200 {object} response.Response{data=response.UserResponse}
 // @Failure 400 {object} response.Response
 // @Failure 401 {object} response.Response
 // @Router /api/v1/auth/avatar [post]
@@ -245,25 +247,36 @@ func (h *AuthHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 生成文件名：user_{userID}_{timestamp}.{ext}
+	// 生成存储key：avatars/user_{userID}_{timestamp}.{ext}
 	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("user_%d_%d%s", userID, time.Now().Unix(), ext)
+	key := fmt.Sprintf("avatars/user_%d_%d%s", userID, time.Now().Unix(), ext)
 
-	// 保存文件到 uploads/avatars 目录
-	uploadDir := "./uploads/avatars"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		errorResp(c, 500, "failed to create upload directory")
+	// 读取文件内容
+	src, err := file.Open()
+	if err != nil {
+		errorResp(c, 500, "failed to open file")
+		return
+	}
+	defer src.Close()
+
+	data, err := io.ReadAll(src)
+	if err != nil {
+		errorResp(c, 500, "failed to read file")
 		return
 	}
 
-	filePath := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		errorResp(c, 500, "failed to save file")
+	// 上传到对象存储
+	storageService := global.Storage()
+	if storageService == nil {
+		errorResp(c, 500, "storage service not initialized")
 		return
 	}
 
-	// 生成访问URL
-	avatarURL := fmt.Sprintf("/uploads/avatars/%s", filename)
+	avatarURL, err := storageService.Upload(c.Request.Context(), key, bytes.NewReader(data), contentType)
+	if err != nil {
+		errorResp(c, 500, "failed to upload avatar: "+err.Error())
+		return
+	}
 
 	// 更新数据库
 	if err := h.userService.UpdateAvatar(c.Request.Context(), userID, avatarURL); err != nil {
@@ -273,8 +286,8 @@ func (h *AuthHandler) UploadAvatar(c *gin.Context) {
 
 	// 返回更新后的用户信息
 	user, _ := h.userService.GetUserByID(c.Request.Context(), userID)
-	data := h.userService.ToUserResponse(user)
-	success(c, data)
+	dataResp := h.userService.ToUserResponse(user)
+	success(c, dataResp)
 }
 
 // SetupAuthRoutes 设置认证路由（公开路由，无需JWT）

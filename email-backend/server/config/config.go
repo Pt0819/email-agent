@@ -18,6 +18,9 @@ type Config struct {
 	Agent    AgentConfig    `mapstructure:"agent"`
 	Email    EmailConfig    `mapstructure:"email"`
 	Security SecurityConfig `mapstructure:"security"`
+	Storage  StorageConfig  `mapstructure:"storage"`
+	OSS      OSSConfig      `mapstructure:"oss"`
+	COS      COSConfig      `mapstructure:"cos"`
 }
 
 // ServerConfig 服务配置
@@ -66,6 +69,29 @@ type EmailConfig struct {
 type SecurityConfig struct {
 	CredentialKey string `mapstructure:"credential_key"`
 	JWTSecret     string `mapstructure:"jwt_secret"`
+}
+
+// StorageConfig 存储配置
+type StorageConfig struct {
+	Type       string `mapstructure:"type"`        // oss 或 cos
+	Bucket     string `mapstructure:"bucket"`       // 存储桶名称
+	Region     string `mapstructure:"region"`       // 区域
+	CustomDomain string `mapstructure:"custom_domain"` // 自定义域名
+	BaseURL    string `mapstructure:"base_url"`    // 基础访问URL
+}
+
+// OSSConfig 阿里云OSS配置
+type OSSConfig struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	AccessKeySecret  string `mapstructure:"access_key_secret"`
+}
+
+// COSConfig 腾讯云COS配置
+type COSConfig struct {
+	Region   string `mapstructure:"region"`
+	SecretID  string `mapstructure:"secret_id"`
+	SecretKey string `mapstructure:"secret_key"`
 }
 
 // LoadConfig 加载配置
@@ -123,6 +149,20 @@ func LoadConfig(configPath string) (*Config, error) {
 	if dbPassword := os.Getenv("DB_PASSWORD"); dbPassword != "" {
 		cfg.Database.Password = dbPassword
 	}
+	// OSS配置
+	if ossKeyID := os.Getenv("OSS_ACCESS_KEY_ID"); ossKeyID != "" {
+		cfg.OSS.AccessKeyID = ossKeyID
+	}
+	if ossKeySecret := os.Getenv("OSS_ACCESS_KEY_SECRET"); ossKeySecret != "" {
+		cfg.OSS.AccessKeySecret = ossKeySecret
+	}
+	// COS配置
+	if cosSecretID := os.Getenv("COS_SECRET_ID"); cosSecretID != "" {
+		cfg.COS.SecretID = cosSecretID
+	}
+	if cosSecretKey := os.Getenv("COS_SECRET_KEY"); cosSecretKey != "" {
+		cfg.COS.SecretKey = cosSecretKey
+	}
 
 	return &cfg, nil
 }
@@ -158,4 +198,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("email.batch_size", 50)
 	v.SetDefault("email.initial_days", 30)
 	v.SetDefault("email.auto_classify", true)
+
+	// Storage
+	v.SetDefault("storage.type", "oss")
+	v.SetDefault("storage.bucket", "email-agent-avatar")
+	v.SetDefault("storage.region", "cn-hangzhou")
+	v.SetDefault("storage.base_url", "")
 }

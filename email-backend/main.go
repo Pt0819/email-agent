@@ -46,31 +46,36 @@ func main() {
 		log.Fatalf("初始化加密器失败: %v", err)
 	}
 
-	// 5. 初始化邮件Provider
+	// 5. 初始化对象存储服务
+	if err := core.InitStorage(); err != nil {
+		log.Fatalf("初始化对象存储服务失败: %v", err)
+	}
+
+	// 6. 初始化邮件Provider
 	core.InitProviders()
 
-	// 6. 设置Gin模式
+	// 7. 设置Gin模式
 	if core.Config().Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 7. 创建Gin实例
+	// 8. 创建Gin实例
 	r := gin.New()
 
-	// 8. 设置路由（获取调度器）
+	// 9. 设置路由（获取调度器）
 	scheduler := router.Setup(r, core.Config())
 
-	// 9. 静态文件服务（提供上传文件访问）
+	// 10. 静态文件服务（提供上传文件访问）
 	r.Static("/uploads", "./uploads")
 
-	// 10. 启动同步调度器
+	// 11. 启动同步调度器
 	if core.Config().Email.AutoClassify {
 		if err := scheduler.Start(); err != nil {
 			log.Printf("警告: 启动同步调度器失败: %v", err)
 		}
 	}
 
-	// 11. 启动HTTP服务
+	// 12. 启动HTTP服务
 	addr := fmt.Sprintf(":%d", core.Config().Server.Port)
 
 	// 优雅关闭

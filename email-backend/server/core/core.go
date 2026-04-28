@@ -7,6 +7,7 @@ import (
 	"email-backend/server/config"
 	"email-backend/server/pkg/crypto"
 	"email-backend/server/pkg/email/provider"
+	"email-backend/server/pkg/storage"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,6 +21,8 @@ var (
 	GlobalDB *gorm.DB
 	// GlobalEncryptor 全局凭证加密器
 	GlobalEncryptor *crypto.CredentialEncryptor
+	// GlobalStorage 全局对象存储服务
+	GlobalStorage storage.Storage
 )
 
 // Config 返回全局配置
@@ -35,6 +38,33 @@ func DB() *gorm.DB {
 // Encryptor 返回全局加密器
 func Encryptor() *crypto.CredentialEncryptor {
 	return GlobalEncryptor
+}
+
+// Storage 返回全局对象存储服务
+func Storage() storage.Storage {
+	return GlobalStorage
+}
+
+// InitStorage 初始化对象存储服务
+func InitStorage() error {
+	storageService, err := storage.CreateStorage(GlobalConfig)
+	if err != nil {
+		return fmt.Errorf("初始化存储服务失败: %w", err)
+	}
+
+	GlobalStorage = storageService
+	fmt.Printf("存储服务初始化成功: 类型=%s, Bucket=%s\n", GlobalConfig.Storage.Type, GlobalConfig.Storage.Bucket)
+
+	// 尝试设置Bucket为公共读（如果失败不影响服务启动）
+	if ossStorage, ok := storageService.(*storage.OSSStorage); ok {
+		if err := ossStorage.SetBucketPublicRead(); err != nil {
+			fmt.Printf("警告: 设置Bucket公共读失败，请手动在OSS控制台设置: %v\n", err)
+		} else {
+			fmt.Printf("Bucket ACL已设置为公共读\n")
+		}
+	}
+
+	return nil
 }
 
 // InitConfig 初始化配置

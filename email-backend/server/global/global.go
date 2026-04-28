@@ -5,6 +5,7 @@ import (
 	"email-backend/server/config"
 	"email-backend/server/core"
 	"email-backend/server/pkg/crypto"
+	"email-backend/server/pkg/storage"
 
 	"gorm.io/gorm"
 )
@@ -22,4 +23,9 @@ func Config() *config.Config {
 // Encryptor 获取全局凭证加密器
 func Encryptor() *crypto.CredentialEncryptor {
 	return core.GlobalEncryptor
+}
+
+// Storage 获取全局对象存储服务
+func Storage() storage.Storage {
+	return core.GlobalStorage
 }

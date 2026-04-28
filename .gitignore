@@ -58,3 +58,11 @@ email-web/node_modules/
 # Temporary files
 *.tmp
 *.temp
+
+# Logs
+*.log
+server.log
+
+# Uploads directory
+uploads/
+email-backend/uploads/
